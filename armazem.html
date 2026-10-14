@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meridiano Armazém</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: canvas 3D fixo + trilho de rolagem longo; painéis de texto surgem em cada parada do percurso */
+:root {
+  --ink: #0b0c0e;
+  --ink-2: #15171b;
+  --paper: #ece7df;
+  --muted: #a39d94;
+  --safety: #ff6a13;
+  --signal: #f2c230;
+  --hair: rgba(236, 231, 223, .16);
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: auto; }
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-x: hidden;
+}
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+.scrim {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(11,12,14,.82) 0%, rgba(11,12,14,.35) 38%, rgba(11,12,14,0) 60%),
+    linear-gradient(0deg, rgba(11,12,14,.55) 0%, rgba(11,12,14,0) 30%);
+}
+
+/* topo */
+.top {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-bottom: 18px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.brand { display: flex; align-items: center; gap: 10px; color: var(--paper); text-decoration: none; }
+.brand svg { width: 28px; height: 28px; }
+.brand span { font-family: var(--display); font-weight: 900; font-size: 24px; letter-spacing: .06em; }
+.top nav { display: flex; gap: 26px; }
+.top nav a {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); text-decoration: none;
+}
+.top nav a:hover, .top nav a:focus-visible { color: var(--paper); }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  background: var(--safety); color: var(--ink); border: 0; padding: 11px 16px; cursor: pointer;
+  text-decoration: none; font-weight: 500;
+}
+.btn:hover { background: var(--paper); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--signal); outline-offset: 3px;
+}
+.bar { position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 11; background: var(--safety); transform-origin: 0 50%; transform: scaleX(0); }
+
+/* painéis */
+.panel {
+  position: fixed; z-index: 5;
+  left: max(24px, env(safe-area-inset-left, 0px));
+  bottom: calc(12vh + env(safe-area-inset-bottom, 0px));
+  width: min(470px, calc(100% - 48px));
+  will-change: opacity, transform;
+}
+.panel.hero { width: min(760px, calc(100% - 48px)); opacity: 1; }
+.eyebrow {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--safety); margin: 0 0 14px;
+}
+.panel h1, .panel h2 {
+  font-family: var(--display); font-weight: 900; text-transform: uppercase;
+  line-height: .9; letter-spacing: .005em; margin: 0 0 18px; text-wrap: balance;
+}
+.panel h1 { font-size: clamp(56px, 10vw, 132px); }
+.panel h1 em { font-style: normal; color: transparent; -webkit-text-stroke: 2px var(--paper); }
+.panel h2 { font-size: clamp(44px, 6vw, 76px); }
+.panel p:not(.eyebrow) { margin: 0 0 22px; max-width: 42ch; color: #d6d0c6; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--hair); }
+.stats div { padding: 12px 12px 0 0; min-width: 0; }
+.stats div + div { padding-left: 12px; border-left: 1px solid var(--hair); }
+.stats b {
+  display: block; font-family: var(--display); font-weight: 800; font-size: 34px; line-height: 1;
+  color: var(--paper); font-variant-numeric: tabular-nums;
+}
+.stats small { display: block; margin-top: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hint {
+  display: inline-flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.hint i { display: block; width: 1px; height: 34px; background: var(--hair); position: relative; overflow: hidden; }
+.hint i::after { content: ""; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: var(--safety); animation: drip 1.8s infinite cubic-bezier(.6,0,.3,1); }
+@keyframes drip { to { top: 100%; } }
+.station { opacity: 0; pointer-events: none; }
+.station.on { pointer-events: auto; }
+
+/* trilho de paradas */
+.stops {
+  position: fixed; z-index: 6; top: 50%; transform: translateY(-50%);
+  right: max(24px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none;
+}
+.stops button {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px; width: 100%;
+  background: none; border: 0; padding: 7px 0; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 12px rgba(0,0,0,.85);
+}
+.stops button::after { content: ""; width: 18px; height: 2px; background: var(--hair); transition: width .3s, background .3s; }
+.stops button.on { color: var(--paper); }
+.stops button.on::after { width: 34px; background: var(--safety); }
+.coord {
+  position: fixed; z-index: 6; right: max(24px, env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right;
+}
+
+#walk { height: 760vh; position: relative; z-index: 2; }
+
+/* contato e rodapé */
+.after { position: relative; z-index: 7; background: var(--ink); }
+.contact {
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: start;
+  max-width: 1180px; margin: 0 auto;
+  padding-block: 120px 96px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.contact > * { min-width: 0; }
+.contact h2 {
+  font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: .9;
+  font-size: clamp(56px, 8vw, 112px); margin: 0 0 28px; text-wrap: balance;
+}
+.contact h2 span { color: var(--safety); }
+.facts { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--hair); }
+.facts div { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--hair); }
+.facts dt { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+.facts dd { margin: 0; }
+form { display: grid; gap: 18px; background: var(--ink-2); padding: 32px; }
+label { display: grid; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+input, select, textarea {
+  font: inherit; font-family: var(--body); font-size: 16px; letter-spacing: 0; text-transform: none;
+  color: var(--paper); background: transparent; border: 0; border-bottom: 1px solid var(--hair); padding: 8px 0; border-radius: 0;
+}
+select option { background: var(--ink-2); }
+textarea { resize: vertical; min-height: 84px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.row2 > * { min-width: 0; }
+.sent { font-family: var(--mono); font-size: 12px; color: var(--signal); margin: 0; min-height: 1.2em; }
+footer {
+  border-top: 1px solid var(--hair); overflow: hidden;
+  padding-block: 40px 28px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.giant {
+  font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: .8;
+  font-size: clamp(64px, 19vw, 300px); color: transparent; -webkit-text-stroke: 1px rgba(236,231,223,.35);
+  margin: 0; text-align: center; letter-spacing: .02em; white-space: nowrap;
+}
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 24px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .top nav { display: none; }
+  .scrim { background: linear-gradient(0deg, rgba(11,12,14,.92) 0%, rgba(11,12,14,.6) 38%, rgba(11,12,14,0) 62%); }
+  .panel { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: calc(100% - 64px); }
+  .panel.hero { width: calc(100% - 32px); }
+  .stops { right: max(12px, env(safe-area-inset-right, 0px)); }
+  .stops button { font-size: 0; gap: 0; }
+  .stats b { font-size: 26px; }
+  .coord { display: none; }
+  .contact { grid-template-columns: 1fr; gap: 40px; padding-block: 80px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .facts div { grid-template-columns: 1fr; gap: 4px; }
+  form { padding: 22px; }
+  .row2 { grid-template-columns: 1fr; }
+  .top { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint i::after { animation: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="scrim"></div>
+<div class="bar" id="bar"></div>
+
+<header class="top">
+  <a class="brand" href="#top" aria-label="Meridiano, início">
+    <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12.5" fill="none" stroke="#ff6a13" stroke-width="2"/><path d="M14 1.5v25M5 22.5c3-3 5.8-4.4 9-4.4s6 1.4 9 4.4" fill="none" stroke="#ece7df" stroke-width="2"/></svg>
+    <span>MERIDIANO</span>
+  </a>
+  <nav aria-label="Seções">
+    <a href="#" data-go="1">Armazenagem</a>
+    <a href="#" data-go="2">Movimentação</a>
+    <a href="#" data-go="3">Contêineres</a>
+    <a href="#" data-go="4">Transporte</a>
+  </nav>
+  <a class="btn" href="#contato">Pedir cotação</a>
+</header>
+
+<section class="panel hero" id="hero">
+  <p class="eyebrow">Meridiano Logística · CD Campinas–SP</p>
+  <h1>Do portão <em>à doca.</em></h1>
+  <p>38 mil m² de armazém, terminal de contêineres e frota própria no mesmo endereço. Entre e veja como sua carga passa por aqui.</p>
+  <span class="hint"><i></i>Role para entrar no armazém</span>
+</section>
+
+<article class="panel station" data-at="0.30">
+  <p class="eyebrow">Rua 02 · Posições A-01 a A-18</p>
+  <h2>Armazenagem</h2>
+  <p>Porta-paletes seletivo em cinco níveis, pé-direito de 12 m e WMS com inventário cíclico diário. Cada palete tem endereço e histórico.</p>
+  <div class="stats">
+    <div><b>42.000</b><small>posições-palete</small></div>
+    <div><b>99,8%</b><small>acuracidade</small></div>
+    <div><b>12 m</b><small>pé-direito</small></div>
+  </div>
+</article>
+
+<article class="panel station" data-at="0.48">
+  <p class="eyebrow">Cruzamento · Corredor transversal</p>
+  <h2>Movimentação</h2>
+  <p>Empilhadeiras retráteis e trilaterais, picking por zona e cross-docking: a carga que chega de manhã pode sair na mesma noite.</p>
+  <div class="stats">
+    <div><b>36</b><small>empilhadeiras</small></div>
+    <div><b>24 h</b><small>cross-docking</small></div>
+    <div><b>1.200</b><small>pedidos / hora</small></div>
+  </div>
+</article>
+
+<article class="panel station" data-at="0.66">
+  <p class="eyebrow">Pátio interno · Terminal REDEX</p>
+  <h2>Contêineres</h2>
+  <p>Ova e desova de 20' e 40', despacho aduaneiro de exportação e conferência com fiscalização no próprio recinto.</p>
+  <div class="stats">
+    <div><b>600</b><small>TEU / mês</small></div>
+    <div><b>20'·40'</b><small>dry e high cube</small></div>
+    <div><b>48 h</b><small>liberação média</small></div>
+  </div>
+</article>
+
+<article class="panel station" data-at="0.84">
+  <p class="eyebrow">Doca de expedição · Portas D-01 a D-10</p>
+  <h2>Transporte</h2>
+  <p>Frota própria com rastreamento em tempo real e janela de agendamento por doca. Do Sul ao Nordeste, com a mesma equipe do armazém.</p>
+  <div class="stats">
+    <div><b>10</b><small>docas niveladas</small></div>
+    <div><b>120</b><small>carretas</small></div>
+    <div><b>98%</b><small>entregas no prazo</small></div>
+  </div>
+</article>
+
+<article class="panel station" data-at="1.0">
+  <p class="eyebrow">Fim do percurso</p>
+  <h2>Sua carga cabe aqui.</h2>
+  <p>Conte o volume e o tipo de mercadoria. Respondemos com uma proposta em até um dia útil.</p>
+  <a class="btn" href="#contato">Pedir cotação</a>
+</article>
+
+<ol class="stops" aria-label="Paradas do percurso">
+  <li><button type="button" data-go="0">Portão</button></li>
+  <li><button type="button" data-go="1">Armazenagem</button></li>
+  <li><button type="button" data-go="2">Movimentação</button></li>
+  <li><button type="button" data-go="3">Contêineres</button></li>
+  <li><button type="button" data-go="4">Transporte</button></li>
+</ol>
+<div class="coord" id="coord">X 0,0 · Z +24,0 m</div>
+
+<div id="walk"></div>
+
+<div class="after">
+  <section class="contact" id="contato">
+    <div>
+      <p class="eyebrow">Comercial</p>
+      <h2>Vamos mover a sua <span>carga?</span></h2>
+      <dl class="facts">
+        <div><dt>Endereço</dt><dd>Rod. dos Bandeirantes, km 00 · Campinas–SP (empresa fictícia)</dd></div>
+        <div><dt>Telefone</dt><dd>(19) 0000-0000</dd></div>
+        <div><dt>E-mail</dt><dd>comercial@meridiano.exemplo</dd></div>
+        <div><dt>Recebimento</dt><dd>Seg. a sáb., 6h às 22h · agendamento por doca</dd></div>
+      </dl>
+    </div>
+    <form id="quote">
+      <div class="row2">
+        <label for="f-name">Nome<input id="f-name" name="name" autocomplete="name" required value="Ana Ribeiro"></label>
+        <label for="f-mail">E-mail<input id="f-mail" name="email" type="email" autocomplete="email" required value="ana@empresa.com.br"></label>
+      </div>
+      <div class="row2">
+        <label for="f-kind">Serviço<select id="f-kind" name="kind"><option>Armazenagem</option><option>Cross-docking</option><option>Contêiner / REDEX</option><option>Transporte</option></select></label>
+        <label for="f-vol">Volume mensal<input id="f-vol" name="vol" value="800 paletes"></label>
+      </div>
+      <label for="f-msg">Mensagem<textarea id="f-msg" name="msg">Eletrônicos embalados, giro alto, saída diária para SP capital.</textarea></label>
+      <button class="btn" type="submit">Enviar pedido</button>
+      <p class="sent" id="sent" aria-live="polite"></p>
+    </form>
+  </section>
+  <footer>
+    <p class="giant" aria-hidden="true">Meridiano</p>
+    <div class="foot"><span>Meridiano Logística · site de demonstração</span><span>Armazenagem · Movimentação · REDEX · Transporte</span></div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var canvas = document.getElementById("scene");
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+
+  var BG = 0x0a0b0d;
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(BG);
+  scene.fog = new THREE.Fog(BG, 14, 64);
+  var camera = new THREE.PerspectiveCamera(62, 1, 0.1, 200);
+  var maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+  /* ---------- texturas desenhadas em canvas ---------- */
+  function makeTex(w, h, draw, rx, ry) {
+    var c = document.createElement("canvas"); c.width = w; c.height = h;
+    draw(c.getContext("2d"), w, h);
+    var t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso;
+    if (rx) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); }
+    return t;
+  }
+  function noise(ctx, w, h, base, amp) {
+    var img = ctx.createImageData(w, h), d = img.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var v = base + (Math.random() - 0.5) * amp;
+      d[i] = v; d[i + 1] = v * 0.99; d[i + 2] = v * 0.97; d[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  var concrete = makeTex(512, 512, function (ctx, w, h) {
+    noise(ctx, w, h, 92, 26);
+    for (var i = 0; i < 40; i++) {
+      ctx.fillStyle = "rgba(0,0,0," + (Math.random() * 0.06) + ")";
+      ctx.beginPath(); ctx.arc(Math.random() * w, Math.random() * h, 20 + Math.random() * 80, 0, 7); ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, w, h);
+  }, 20, 26);
+  var asphalt = makeTex(256, 256, function (ctx, w, h) { noise(ctx, w, h, 40, 22); }, 30, 12);
+  var corrugated = makeTex(256, 256, function (ctx, w, h) {
+    for (var x = 0; x < w; x += 16) {
+      var g = ctx.createLinearGradient(x, 0, x + 16, 0);
+      g.addColorStop(0, "#8a8a8a"); g.addColorStop(0.5, "#e6e6e6"); g.addColorStop(1, "#7a7a7a");
+      ctx.fillStyle = g; ctx.fillRect(x, 0, 16, h);
+    }
+  });
+  function wallTex(rx, ry) { var t = corrugated.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t; }
+  var carton = makeTex(256, 256, function (ctx, w, h) {
+    noise(ctx, w, h, 214, 18);
+    ctx.fillStyle = "rgba(120,80,40,.18)"; ctx.fillRect(0, 0, w, 10); ctx.fillRect(0, h - 10, w, 10);
+    ctx.fillStyle = "rgba(255,240,215,.55)"; ctx.fillRect(w / 2 - 18, 0, 36, h);
+    ctx.fillStyle = "#f4efe6"; ctx.fillRect(28, 150, 86, 56);
+    ctx.fillStyle = "#222"; for (var i = 0; i < 9; i++) ctx.fillRect(36 + i * 8, 160, 3 + (i % 3), 24);
+    ctx.font = "bold 14px monospace"; ctx.fillText("A-07-03", 36, 200);
+  });
+  var rollDoor = makeTex(128, 256, function (ctx, w, h) {
+    ctx.fillStyle = "#cfd2d6"; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(0,0,0,.22)"; for (var y = 0; y < h; y += 12) ctx.fillRect(0, y, w, 2);
+    ctx.fillStyle = "#f2c230"; ctx.fillRect(0, h - 22, w, 22);
+    ctx.fillStyle = "#111"; for (var x = -20; x < w; x += 22) { ctx.beginPath(); ctx.moveTo(x, h); ctx.lineTo(x + 11, h - 22); ctx.lineTo(x + 22, h - 22); ctx.lineTo(x + 11, h); ctx.fill(); }
+  });
+  function signTex(lines, color, bg) {
+    return makeTex(1024, 256, function (ctx, w, h) {
+      if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
+      ctx.fillStyle = color; ctx.textBaseline = "middle"; ctx.textAlign = "center";
+      ctx.font = "900 " + (lines[1] ? 120 : 190) + "px 'Big Shoulders Display', Impact, sans-serif";
+      ctx.fillText(lines[0], w / 2, lines[1] ? 100 : h / 2 + 8);
+      if (lines[1]) { ctx.font = "500 44px 'IBM Plex Mono', monospace"; ctx.fillText(lines[1], w / 2, 200); }
+    });
+  }
+  var halo = makeTex(128, 128, function (ctx, w, h) {
+    var g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.25, "rgba(255,255,255,.35)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  });
+  var beamGrad = makeTex(4, 256, function (ctx, w, h) {
+    var g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, "#5a5650"); g.addColorStop(1, "#000000");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  });
+
+  /* ---------- materiais ---------- */
+  function std(color, rough, extra) {
+    var m = new THREE.MeshStandardMaterial({ color: color, roughness: rough == null ? 0.7 : rough, metalness: 0.1 });
+    if (extra) for (var k in extra) m[k] = extra[k];
+    return m;
+  }
+  var M = {
+    floor: std(0xffffff, 0.55, { map: concrete }),
+    asphalt: std(0x6a6a6a, 0.9, { map: asphalt }),
+    wall: std(0x3a3f48, 0.8, { map: wallTex(30, 3) }),
+    facade: std(0x24272d, 0.7, { map: wallTex(30, 3) }),
+    truss: std(0x23262b, 0.6),
+    upright: std(0x2e4f9a, 0.45),
+    beam: std(0xff6a13, 0.45),
+    pallet: std(0x8a6a44, 0.9),
+    carton: std(0xffffff, 0.85, { map: carton }),
+    yellow: std(0xf2b705, 0.45),
+    dark: std(0x1a1b1e, 0.75),
+    white: std(0xe9e9e6, 0.4),
+    glass: std(0x0d1218, 0.15, { metalness: 0.6 }),
+    line: new THREE.MeshBasicMaterial({ color: 0xc9a12a }),
+    lamp: new THREE.MeshBasicMaterial({ color: 0xfff3df }),
+    neon: new THREE.MeshBasicMaterial({ color: 0xff7a1a }),
+    door: std(0xffffff, 0.6, { map: rollDoor })
+  };
+  function box(w, h, d, mat, x, y, z, parent) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x || 0, y || 0, z || 0);
+    (parent || scene).add(m);
+    return m;
+  }
+  function glow(color, size, x, y, z, opacity, parent) {
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, color: color, transparent: true, opacity: opacity || 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+    s.scale.set(size, size, 1); s.position.set(x, y, z);
+    (parent || scene).add(s);
+    return s;
+  }
+
+  /* ---------- luzes ---------- */
+  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x2a2018, 0.55));
+  [[0, -8], [0, -22], [0, -36], [0, -50], [-9, -68], [9, -68]].forEach(function (p) {
+    var l = new THREE.PointLight(0xfff1dc, 1.15, 28, 1.6); l.position.set(p[0], 9.5, p[1]); scene.add(l);
+  });
+  [-4.6, 4.6].forEach(function (x) {
+    var l = new THREE.PointLight(0xff7a1a, 2.4, 15, 1.6); l.position.set(x, 3, 1.6); scene.add(l);
+  });
+
+  /* ---------- piso, pátio e prédio ---------- */
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(41, 82), M.floor);
+  floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, -39); scene.add(floor);
+  var yard = new THREE.Mesh(new THREE.PlaneGeometry(120, 40), M.asphalt);
+  yard.rotation.x = -Math.PI / 2; yard.position.set(0, 0, 20); scene.add(yard);
+  for (var dz = 4; dz < 34; dz += 4) box(0.18, 0.01, 2, M.line, 0, 0.006, dz);
+
+  box(0.4, 12, 82, M.wall, -20.2, 6, -39);
+  box(0.4, 12, 82, M.wall, 20.2, 6, -39);
+  box(40.8, 12, 0.4, M.wall, 0, 6, -80.2);
+  box(40.8, 0.4, 82, M.truss, 0, 12.2, -39);
+  box(16.2, 12, 0.5, M.facade, -12.3, 6, 0);
+  box(16.2, 12, 0.5, M.facade, 12.3, 6, 0);
+  box(8.4, 5.5, 0.5, M.facade, 0, 9.25, 0);
+  for (var tz = -3; tz > -80; tz -= 6) box(40, 0.3, 0.25, M.truss, 0, 11.6, tz);
+
+  // portão com neon
+  box(0.16, 6.5, 0.16, M.neon, -4.35, 3.25, 0.32);
+  box(0.16, 6.5, 0.16, M.neon, 4.35, 3.25, 0.32);
+  box(8.86, 0.16, 0.16, M.neon, 0, 6.55, 0.32);
+  for (var gy = 0.6; gy < 6.4; gy += 1.1) { glow(0xff7a1a, 2.6, -4.35, gy, 0.5, 0.55); glow(0xff7a1a, 2.6, 4.35, gy, 0.5, 0.55); }
+  var floorGlow = new THREE.Mesh(new THREE.PlaneGeometry(14, 7), new THREE.MeshBasicMaterial({ map: halo, color: 0xff6a13, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+  floorGlow.rotation.x = -Math.PI / 2; floorGlow.position.set(0, 0.02, 1.5); scene.add(floorGlow);
+  var logo = new THREE.Mesh(new THREE.PlaneGeometry(10, 2.5), new THREE.MeshBasicMaterial({ map: signTex(["MERIDIANO"], "#ff6a13"), transparent: true }));
+  logo.position.set(0, 9.2, 0.27); scene.add(logo);
+  var backLogo = new THREE.Mesh(new THREE.PlaneGeometry(16, 4), new THREE.MeshBasicMaterial({ map: signTex(["MERIDIANO"], "#ff8a33"), transparent: true }));
+  backLogo.position.set(0, 9, -79.95); scene.add(backLogo);
+  glow(0xff6a13, 18, 0, 9, -79.5, 0.25);
+
+  // postes no pátio
+  [-14, 14].forEach(function (x) {
+    box(0.18, 7, 0.18, M.dark, x, 3.5, 14);
+    box(1.2, 0.15, 0.4, M.lamp, x, 7, 14);
+    glow(0xfff1dc, 4, x, 6.9, 14, 0.7);
+    var l = new THREE.PointLight(0xfff1dc, 0.9, 16, 1.6); l.position.set(x, 6.5, 14); scene.add(l);
+  });
+
+  /* ---------- porta-paletes (instanciados) ---------- */
+  var rowsX = [-16.2, -10.4, -4.6, 4.6, 10.4, 16.2];
+  var segs = [[-6, -29.5], [-34.5, -57]];
+  var BAY = 2.7, LEVELS = [0.12, 1.75, 3.35, 4.95, 6.55];
+  var up = [], bm = [], pl = [], ct = [];
+  var dummy = new THREE.Object3D();
+  function mat4(x, y, z, sx, sy, sz) { dummy.position.set(x, y, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); return dummy.matrix.clone(); }
+  rowsX.forEach(function (rx) {
+    segs.forEach(function (s) {
+      var nb = Math.floor((s[0] - s[1]) / BAY);
+      for (var k = 0; k <= nb; k++) {
+        var z = s[0] - k * BAY;
+        up.push(mat4(rx - 1.05, 3.6, z, 1, 1, 1), mat4(rx + 1.05, 3.6, z, 1, 1, 1));
+      }
+      for (var b = 0; b < nb; b++) {
+        var zc = s[0] - (b + 0.5) * BAY;
+        LEVELS.forEach(function (ly, li) {
+          bm.push(mat4(rx - 1.05, ly + 0.06, zc, 1, 1, 1), mat4(rx + 1.05, ly + 0.06, zc, 1, 1, 1));
+          if (li === 4 && Math.random() < 0.6) return;
+          [-0.62, 0.62].forEach(function (oz) {
+            [-0.52, 0.52].forEach(function (ox) {
+              if (Math.random() < 0.13) return;
+              var py = ly + 0.13;
+              pl.push(mat4(rx + ox, py + 0.07, zc + oz, 1, 1, 1));
+              var hgt = 0.7 + Math.random() * 0.75;
+              ct.push({ m: mat4(rx + ox, py + 0.14 + hgt / 2, zc + oz, 0.92 + Math.random() * 0.06, hgt, 1.05 + Math.random() * 0.08), wrap: Math.random() < 0.2 });
+            });
+          });
+        });
+      }
+    });
+  });
+  function instanced(geo, mat, list, colorFn) {
+    var im = new THREE.InstancedMesh(geo, mat, list.length);
+    var c = new THREE.Color();
+    list.forEach(function (it, i) {
+      im.setMatrixAt(i, it.m || it);
+      if (colorFn) { colorFn(it, c); im.setColorAt(i, c); }
+    });
+    im.instanceMatrix.needsUpdate = true;
+    scene.add(im);
+    return im;
+  }
+  instanced(new THREE.BoxGeometry(0.09, 7.2, 0.09), M.upright, up);
+  instanced(new THREE.BoxGeometry(BAY - 0.08, 0.12, 0.07), M.beam, bm);
+  instanced(new THREE.BoxGeometry(1.0, 0.14, 1.18), M.pallet, pl);
+  var tones = [0xffffff, 0xf3dcc0, 0xe8cfae, 0xfff1de];
+  instanced(new THREE.BoxGeometry(1, 1, 1), M.carton, ct, function (it, c) {
+    if (it.wrap) c.setHex(0xa9b6c0); else c.setHex(tones[(Math.random() * tones.length) | 0]);
+  });
+
+  // luminárias e feixes de luz
+  var lampsL = [];
+  [-13.3, -7.5, 0, 7.5, 13.3].forEach(function (x) { for (var z = -3; z > -79; z -= 6) lampsL.push(mat4(x, 11.15, z, 1, 1, 1)); });
+  instanced(new THREE.BoxGeometry(0.45, 0.08, 2.6), M.lamp, lampsL);
+  var coneMat = new THREE.MeshBasicMaterial({ map: beamGrad, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  var coneGeo = new THREE.CylinderGeometry(0.35, 2.8, 11, 28, 1, true);
+  [-7.5, 0, 7.5].forEach(function (x) {
+    for (var z = -9; z > -79; z -= 12) { var c = new THREE.Mesh(coneGeo, coneMat); c.position.set(x, 5.6, z); scene.add(c); }
+  });
+
+  // faixas amarelas no piso
+  box(0.12, 0.01, 52, M.line, -3.35, 0.006, -31);
+  box(0.12, 0.01, 52, M.line, 3.35, 0.006, -31);
+  for (var cx = -18; cx <= 18; cx += 1.2) box(0.6, 0.01, 2.6, M.line, cx, 0.006, -32);
+
+  // placas suspensas das ruas
+  [["RUA 01", "A-001 → A-216", -7.5], ["RUA 02", "B-001 → B-216", 0], ["RUA 03", "C-001 → C-216", 7.5]].forEach(function (s) {
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshBasicMaterial({ map: signTex([s[0], s[1]], "#0b0c0e", "#f2c230"), side: THREE.DoubleSide }));
+    m.position.set(s[2], 8.4, -5.4); scene.add(m);
+    box(0.02, 3, 0.02, M.dark, s[2] - 1.5, 10.3, -5.4); box(0.02, 3, 0.02, M.dark, s[2] + 1.5, 10.3, -5.4);
+  });
+
+  /* ---------- empilhadeiras ---------- */
+  function makeForklift() {
+    var g = new THREE.Group();
+    box(1.15, 0.9, 1.9, M.yellow, 0, 0.75, 0, g);
+    box(1.15, 0.7, 0.45, M.yellow, 0, 0.95, -0.9, g);
+    box(0.55, 0.5, 0.5, M.dark, 0, 1.4, -0.25, g);
+    [[-0.5, 0.6], [0.5, 0.6], [-0.5, -0.6], [0.5, -0.6]].forEach(function (p) { box(0.06, 1.2, 0.06, M.dark, p[0], 1.8, p[1], g); });
+    box(1.15, 0.06, 1.3, M.dark, 0, 2.42, 0, g);
+    box(0.09, 2.6, 0.1, M.dark, -0.36, 1.4, 1.05, g); box(0.09, 2.6, 0.1, M.dark, 0.36, 1.4, 1.05, g);
+    box(0.95, 0.45, 0.06, M.dark, 0, 0.55, 1.13, g);
+    box(0.12, 0.05, 1.15, M.dark, -0.26, 0.2, 1.72, g); box(0.12, 0.05, 1.15, M.dark, 0.26, 0.2, 1.72, g);
+    box(1.0, 0.14, 1.18, M.pallet, 0, 0.32, 1.72, g);
+    box(0.95, 0.85, 1.1, M.carton, 0, 0.82, 1.72, g);
+    var wg = new THREE.CylinderGeometry(0.3, 0.3, 0.26, 18);
+    [[-0.62, 0.6], [0.62, 0.6], [-0.62, -0.6], [0.62, -0.6]].forEach(function (p) {
+      var w = new THREE.Mesh(wg, M.dark); w.rotation.z = Math.PI / 2; w.position.set(p[0], 0.3, p[1]); g.add(w);
+    });
+    var bc = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff7a1a }));
+    bc.position.set(0, 2.52, -0.3); g.add(bc);
+    g.userData.beacon = glow(0xff7a1a, 1.4, 0, 2.52, -0.3, 0.9, g);
+    scene.add(g);
+    return g;
+  }
+  var lift = makeForklift(); lift.position.set(-8, 0, -32.6);
+  var lift2 = makeForklift(); lift2.position.set(2.2, 0, -45.5); lift2.rotation.y = -0.35;
+  var lift3 = makeForklift(); lift3.position.set(-1.5, 0, -73); lift3.rotation.y = 2.6;
+
+  /* ---------- doca, caminhões, contêineres ---------- */
+  [-4, 4, 11.5].forEach(function (x, i) {
+    var d = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.6), i === 0 ? new THREE.MeshBasicMaterial({ color: 0xffe7c4 }) : M.door);
+    d.position.set(x, 1.8, -79.95); scene.add(d);
+    box(3.6, 0.25, 0.2, M.dark, x, 3.75, -79.85);
+    var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshBasicMaterial({ color: i === 0 ? 0x3bd16f : 0xff3b2f }));
+    lamp.position.set(x + 2, 3.2, -79.85); scene.add(lamp);
+    glow(i === 0 ? 0x3bd16f : 0xff3b2f, 0.8, x + 2, 3.2, -79.7, 0.8);
+  });
+  glow(0xffd9a8, 9, -4, 1.8, -79.4, 0.35);
+  for (var px = -5.5; px <= -2.5; px += 1.5) for (var pz = -76.5; pz <= -73.5; pz += 1.5) {
+    box(1.0, 0.14, 1.18, M.pallet, px, 0.07, pz);
+    box(0.95, 0.6 + Math.random() * 0.6, 1.1, M.carton, px, 0.6, pz);
+  }
+  function makeTruck(trailerColor, label) {
+    var g = new THREE.Group();
+    var trailerMat = std(trailerColor, 0.55, { map: wallTex(6, 1) });
+    box(2.6, 2.8, 12, trailerMat, 0, 2.6, -6, g);
+    box(2.2, 0.35, 13.5, M.dark, 0, 0.95, -5.5, g);
+    box(2.5, 2.5, 2.3, M.white, 0, 2.2, 1.4, g);
+    box(2.52, 0.3, 2.32, M.beam, 0, 1.55, 1.4, g);
+    box(2.2, 1.0, 0.05, M.glass, 0, 2.8, 2.57, g);
+    box(1.4, 0.6, 0.05, M.dark, 0, 1.5, 2.57, g);
+    [-0.95, 0.95].forEach(function (x) {
+      box(0.35, 0.18, 0.05, M.lamp, x, 1.25, 2.58, g);
+      glow(0xfff1dc, 1.6, x, 1.25, 2.75, 0.8, g);
+    });
+    var side = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: signTex([label], "#ffffff"), transparent: true }));
+    side.rotation.y = -Math.PI / 2; side.position.set(-1.31, 2.7, -6); g.add(side);
+    var side2 = side.clone(); side2.rotation.y = Math.PI / 2; side2.position.x = 1.31; g.add(side2);
+    var wg = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 20);
+    [1.3, -8, -9.2, -10.4].forEach(function (z) {
+      [-1.1, 1.1].forEach(function (x) { var w = new THREE.Mesh(wg, M.dark); w.rotation.z = Math.PI / 2; w.position.set(x, 0.5, z); g.add(w); });
+    });
+    scene.add(g);
+    return g;
+  }
+  var t1 = makeTruck(0xb3261e, "MERIDIANO"); t1.position.set(4, 0, -67.2);
+  var t2 = makeTruck(0x2f6b3a, "MERIDIANO"); t2.position.set(11.5, 0, -67.2);
+  var t3 = makeTruck(0x2e4f9a, "MERIDIANO"); t3.position.set(17, 0, 13); t3.rotation.y = Math.PI * 0.9;
+  function container(color, x, y, z, ry) {
+    var m = box(2.44, 2.6, 6.06, std(color, 0.6, { map: wallTex(7, 1) }), x, y + 1.3, z);
+    m.rotation.y = ry || 0;
+    return m;
+  }
+  container(0x2f6b3a, -16.5, 0, -67);
+  container(0xb3261e, -13.6, 0, -67.5);
+  container(0xd8661c, -15, 2.6, -67.2, 0.04);
+  container(0x2e4f9a, -16.5, 0, -74);
+  container(0x8a8f96, -13.6, 0, -74.4);
+
+  /* ---------- percurso da câmera ---------- */
+  var KEYS = [
+    { p: 0.00, pos: [0, 1.7, 24],     look: [0, 4.6, 0] },
+    { p: 0.14, pos: [0, 1.7, 7],      look: [0, 3.0, -6] },
+    { p: 0.30, pos: [0.4, 1.7, -14],  look: [-3.4, 2.8, -19.5] },
+    { p: 0.48, pos: [0.6, 1.7, -29.4], look: [-11, 1.4, -32.6] },
+    { p: 0.66, pos: [-2, 1.8, -57.5], look: [-14, 1.8, -68] },
+    { p: 0.84, pos: [-0.5, 2.0, -58], look: [6, 2.3, -68] },
+    { p: 1.00, pos: [0, 6.8, -54],    look: [0, 1.4, -77] }
+  ];
+  var STOPS = [0, 0.30, 0.48, 0.66, 0.84];
+  var tmpPos = new THREE.Vector3(), tmpLook = new THREE.Vector3();
+  function sample(p) {
+    var i = 0;
+    while (i < KEYS.length - 2 && p > KEYS[i + 1].p) i++;
+    var a = KEYS[i], b = KEYS[i + 1];
+    var t = Math.min(1, Math.max(0, (p - a.p) / (b.p - a.p)));
+    t = t * t * (3 - 2 * t);
+    tmpPos.set(a.pos[0] + (b.pos[0] - a.pos[0]) * t, a.pos[1] + (b.pos[1] - a.pos[1]) * t, a.pos[2] + (b.pos[2] - a.pos[2]) * t);
+    tmpLook.set(a.look[0] + (b.look[0] - a.look[0]) * t, a.look[1] + (b.look[1] - a.look[1]) * t, a.look[2] + (b.look[2] - a.look[2]) * t);
+  }
+
+  /* ---------- interface ---------- */
+  var walk = document.getElementById("walk");
+  var hero = document.getElementById("hero");
+  var panels = [].slice.call(document.querySelectorAll(".station"));
+  var stopBtns = [].slice.call(document.querySelectorAll(".stops button"));
+  var bar = document.getElementById("bar");
+  var coord = document.getElementById("coord");
+  function walkRange() { return Math.max(1, walk.offsetHeight - window.innerHeight); }
+  function scrollProgress() { return Math.min(1, Math.max(0, window.scrollY / walkRange())); }
+  document.querySelectorAll("[data-go]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      e.preventDefault();
+      window.scrollTo({ top: STOPS[+el.dataset.go] * walkRange(), behavior: reduce ? "auto" : "smooth" });
+    });
+  });
+  document.getElementById("quote").addEventListener("submit", function (e) {
+    e.preventDefault();
+    document.getElementById("sent").textContent = "Pedido registrado nesta página. Este é um site de demonstração e nada foi enviado.";
+  });
+
+  var mouse = { x: 0, y: 0, tx: 0, ty: 0 };
+  window.addEventListener("pointermove", function (e) {
+    if (e.pointerType !== "mouse") return;
+    mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.ty = (e.clientY / window.innerHeight) * 2 - 1;
+  });
+
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w / h < 0.8 ? 74 : 62;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  var prog = scrollProgress(), phase = 0, amp = 0, last = performance.now(), clock = 0;
+  var prev = new THREE.Vector3(); sample(prog); prev.copy(tmpPos);
+  var liftHeading = Math.PI / 2;
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+    var target = scrollProgress();
+    prog += (target - prog) * (1 - Math.exp(-dt * (reduce ? 20 : 4.2)));
+
+    // interface
+    bar.style.transform = "scaleX(" + prog.toFixed(4) + ")";
+    hero.style.opacity = Math.max(0, Math.min(1, (0.09 - prog) / 0.05));
+    hero.style.transform = "translateY(" + (-Math.min(prog, 0.1) * 300) + "px)";
+    hero.style.pointerEvents = prog < 0.06 ? "auto" : "none";
+    panels.forEach(function (el) {
+      var at = +el.dataset.at, d = Math.abs(prog - at);
+      var o = Math.max(0, Math.min(1, (0.075 - d) / 0.04));
+      el.style.opacity = o;
+      el.style.transform = "translateY(" + ((prog - at) * -260) + "px)";
+      el.classList.toggle("on", o > 0.5);
+    });
+    var active = 0;
+    STOPS.forEach(function (s, i) { if (prog >= s - 0.06) active = i; });
+    stopBtns.forEach(function (b, i) { b.classList.toggle("on", i === active); });
+
+    if (window.scrollY > walk.offsetHeight + 40) return;
+
+    // câmera com passos
+    sample(prog);
+    var dist = tmpPos.distanceTo(prev); prev.copy(tmpPos);
+    var speed = dist / Math.max(dt, 1e-4);
+    amp += (Math.min(1, speed / 2.2) - amp) * (1 - Math.exp(-dt * 6));
+    phase += dist * Math.PI / 0.78;
+    var bobAmp = reduce ? 0 : amp;
+    camera.position.copy(tmpPos);
+    camera.position.y += (Math.abs(Math.sin(phase)) - 0.5) * 0.07 * bobAmp;
+    camera.position.x += Math.sin(phase) * 0.035 * bobAmp;
+    mouse.x += (mouse.tx - mouse.x) * (1 - Math.exp(-dt * 3));
+    mouse.y += (mouse.ty - mouse.y) * (1 - Math.exp(-dt * 3));
+    tmpLook.x += mouse.x * 1.6; tmpLook.y -= mouse.y * 0.8;
+    camera.lookAt(tmpLook);
+    camera.rotateZ(Math.sin(phase) * 0.006 * bobAmp);
+    coord.textContent = "X " + camera.position.x.toFixed(1).replace(".", ",") + " · Z " + (camera.position.z >= 0 ? "+" : "") + camera.position.z.toFixed(1).replace(".", ",") + " m";
+
+    // empilhadeira cruzando o corredor
+    var lt = clock * 0.22;
+    var lx = Math.sin(lt) * 15.5, vx = Math.cos(lt);
+    lift.position.x = lx;
+    var want = vx >= 0 ? Math.PI / 2 : -Math.PI / 2;
+    liftHeading += (want - liftHeading) * (1 - Math.exp(-dt * 3));
+    lift.rotation.y = liftHeading;
+    var blink = (Math.sin(clock * 9) > 0) ? 0.95 : 0.15;
+    lift.userData.beacon.material.opacity = blink;
+    lift2.userData.beacon.material.opacity = 0.6;
+    lift3.userData.beacon.material.opacity = (Math.sin(clock * 7 + 1) > 0) ? 0.9 : 0.15;
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

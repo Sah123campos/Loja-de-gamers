@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Núcleo Hardware</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: canvas 3D fixo + trilho de rolagem; cada setor da fábrica é uma parada com painel à esquerda */
+:root {
+  --ink: #08080c;
+  --ink-2: #12131a;
+  --paper: #eef0f6;
+  --muted: #8f93a6;
+  --mag: #ff2e88;
+  --cyan: #23d5f0;
+  --amber: #ffb020;
+  --hair: rgba(238, 240, 246, .15);
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ink); color: var(--paper);
+  font-family: var(--body); font-size: 16px; line-height: 1.55; overflow-x: hidden;
+}
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+.scrim {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(8,8,12,.86) 0%, rgba(8,8,12,.4) 36%, rgba(8,8,12,0) 58%),
+    linear-gradient(0deg, rgba(8,8,12,.55) 0%, rgba(8,8,12,0) 30%);
+}
+.top {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px)); padding-bottom: 18px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.brand { display: flex; align-items: center; gap: 10px; color: var(--paper); text-decoration: none; }
+.brand svg { width: 28px; height: 28px; }
+.brand span { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: .12em; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  background: var(--mag); color: #fff; border: 0; padding: 11px 16px; cursor: pointer; text-decoration: none;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+.btn:hover { background: var(--paper); color: var(--ink); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.bar { position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 11; background: linear-gradient(90deg, var(--mag), var(--cyan)); transform-origin: 0 50%; transform: scaleX(0); }
+
+.panel {
+  position: fixed; z-index: 5;
+  left: max(24px, env(safe-area-inset-left, 0px));
+  bottom: calc(11vh + env(safe-area-inset-bottom, 0px));
+  width: min(470px, calc(100% - 48px));
+}
+.panel.hero { width: min(640px, calc(100% - 48px)); }
+.eyebrow {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--cyan); margin: 0 0 14px;
+}
+.eyebrow b { color: var(--mag); font-weight: 500; }
+.panel h1, .panel h2 { font-family: var(--display); font-weight: 700; text-transform: uppercase; line-height: .92; margin: 0 0 18px; text-wrap: balance; }
+.panel h1 { font-size: clamp(44px, 6.6vw, 96px); letter-spacing: -.01em; }
+.panel h1 em { font-style: normal; color: var(--mag); }
+.panel h2 { font-size: clamp(40px, 5.4vw, 68px); }
+.panel p:not(.eyebrow) { margin: 0 0 22px; max-width: 42ch; color: #d3d6e2; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--hair); }
+.stats div { padding: 12px 12px 0 0; min-width: 0; }
+.stats div + div { padding-left: 12px; border-left: 1px solid var(--hair); }
+.stats b { display: block; font-family: var(--display); font-weight: 700; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stats small { display: block; margin-top: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.hint { display: inline-flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.hint i { display: block; width: 1px; height: 34px; background: var(--hair); position: relative; overflow: hidden; }
+.hint i::after { content: ""; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: var(--mag); animation: drip 1.8s infinite cubic-bezier(.6,0,.3,1); }
+@keyframes drip { to { top: 100%; } }
+.station { opacity: 0; pointer-events: none; }
+.station.on { pointer-events: auto; }
+
+.stops {
+  position: fixed; z-index: 6; top: 50%; transform: translateY(-50%);
+  right: max(24px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none;
+}
+.stops button {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%;
+  background: none; border: 0; padding: 6px 0; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 12px rgba(0,0,0,.85);
+}
+.stops button span { color: var(--muted); opacity: .7; font-variant-numeric: tabular-nums; }
+.stops button::after { content: ""; width: 16px; height: 2px; background: var(--hair); transition: width .3s, background .3s; }
+.stops button.on { color: var(--paper); }
+.stops button.on span { color: var(--mag); opacity: 1; }
+.stops button.on::after { width: 32px; background: var(--mag); }
+.coord {
+  position: fixed; z-index: 6; right: max(24px, env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0,0,0,.9);
+}
+#walk { height: 1150vh; position: relative; z-index: 2; }
+
+.after { position: relative; z-index: 7; background: var(--ink); }
+.contact {
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: start;
+  max-width: 1180px; margin: 0 auto; padding-block: 120px 96px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.contact > * { min-width: 0; }
+.contact h2 { font-family: var(--display); font-weight: 700; text-transform: uppercase; line-height: .92; font-size: clamp(48px, 7vw, 96px); margin: 0 0 24px; text-wrap: balance; }
+.contact h2 span { color: var(--mag); }
+.contact > div > p { color: #d3d6e2; max-width: 46ch; margin: 0 0 28px; }
+.specs { margin: 0; border-top: 1px solid var(--hair); }
+.specs div { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--hair); }
+.specs dt { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+.specs dd { margin: 0; }
+form { display: grid; gap: 18px; background: var(--ink-2); padding: 32px; border: 1px solid var(--hair); }
+label { display: grid; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+input, select, textarea {
+  font-family: var(--body); font-size: 16px; letter-spacing: 0; text-transform: none;
+  color: var(--paper); background: transparent; border: 0; border-bottom: 1px solid var(--hair); padding: 8px 0; border-radius: 0;
+}
+select option { background: var(--ink-2); }
+textarea { resize: vertical; min-height: 84px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.row2 > * { min-width: 0; }
+.sent { font-family: var(--mono); font-size: 12px; color: var(--cyan); margin: 0; min-height: 1.2em; }
+footer {
+  border-top: 1px solid var(--hair); overflow: hidden; padding-block: 40px 28px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.giant {
+  font-family: var(--display); font-weight: 700; text-transform: uppercase; line-height: .8; margin: 0; text-align: center; white-space: nowrap;
+  font-size: clamp(64px, 21vw, 320px); color: transparent; -webkit-text-stroke: 1px rgba(255,46,136,.45); letter-spacing: .04em;
+}
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 24px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .scrim { background: linear-gradient(0deg, rgba(8,8,12,.94) 0%, rgba(8,8,12,.62) 40%, rgba(8,8,12,0) 64%); }
+  .panel { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: calc(100% - 64px); }
+  .panel.hero { width: calc(100% - 32px); }
+  .stops { right: max(10px, env(safe-area-inset-right, 0px)); }
+  .stops button { font-size: 0; gap: 0; }
+  .stops button span { display: none; }
+  .stats b { font-size: 24px; }
+  .coord { display: none; }
+  .top { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .contact { grid-template-columns: 1fr; gap: 40px; padding-block: 80px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .specs div { grid-template-columns: 1fr; gap: 4px; }
+  form { padding: 22px; }
+  .row2 { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .hint i::after { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="scrim"></div>
+<div class="bar" id="bar"></div>
+
+<header class="top">
+  <a class="brand" href="#" aria-label="Núcleo Hardware, início" data-go="0">
+    <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2 25 8.5v11L14 26 3 19.5v-11z" fill="none" stroke="#ff2e88" stroke-width="2"/><path d="M14 9.5 18.5 12v5L14 19.5 9.5 17v-5z" fill="#23d5f0"/></svg>
+    <span>NÚCLEO</span>
+  </a>
+  <a class="btn" href="#monte">Montar meu PC</a>
+</header>
+
+<section class="panel hero" id="hero">
+  <p class="eyebrow">Núcleo Hardware · <b>Polo Industrial de Manaus–AM</b></p>
+  <h1>Da linha de montagem <em>até a sua mesa.</em></h1>
+  <p>PCs gamer, periféricos e headsets fabricados, testados e entregues por nós. Entre na fábrica e acompanhe um pedido do começo ao fim.</p>
+  <span class="hint"><i></i>Role para entrar na fábrica</span>
+</section>
+
+<article class="panel station" data-at="0.10">
+  <p class="eyebrow"><b>Setor 01</b> · Recepção e showroom</p>
+  <h2>Entrada</h2>
+  <p>Na recepção ficam os lançamentos em exposição: torres, teclados mecânicos e headsets que você pode testar antes de levar.</p>
+  <div class="stats"><div><b>120+</b><small>produtos na linha</small></div><div><b>3 anos</b><small>de garantia</small></div><div><b>seg–sáb</b><small>visitas guiadas</small></div></div>
+</article>
+
+<article class="panel station" data-at="0.24">
+  <p class="eyebrow"><b>Setor 02</b> · Pesquisa e desenvolvimento</p>
+  <h2>Engenharia</h2>
+  <p>Gabinetes desenhados em CAD, simulação de fluxo de ar e protótipos impressos em 3D antes de qualquer peça ir para a linha.</p>
+  <div class="stats"><div><b>48</b><small>engenheiros</small></div><div><b>CFD</b><small>fluxo de ar simulado</small></div><div><b>18</b><small>patentes</small></div></div>
+</article>
+
+<article class="panel station" data-at="0.38">
+  <p class="eyebrow"><b>Setor 03</b> · Linha SMT e montagem</p>
+  <h2>Montagem</h2>
+  <p>Robôs posicionam os componentes nas placas; depois a equipe instala processador, memória, GPU e faz o cabeamento à mão.</p>
+  <div class="stats"><div><b>3.200</b><small>PCs por dia</small></div><div><b>38 s</b><small>ciclo por placa</small></div><div><b>6</b><small>robôs na linha</small></div></div>
+</article>
+
+<article class="panel station" data-at="0.50">
+  <p class="eyebrow"><b>Setor 04</b> · Controle de qualidade</p>
+  <h2>Burn-in 24 h</h2>
+  <p>Cada máquina roda estresse de CPU e GPU em carga máxima por 24 horas, com registro de temperatura e de FPS. Só sai daqui quem passa.</p>
+  <div class="stats"><div><b>100%</b><small>das unidades</small></div><div><b>24 h</b><small>em carga máxima</small></div><div><b>85 °C</b><small>limite de CPU</small></div></div>
+</article>
+
+<article class="panel station" data-at="0.62">
+  <p class="eyebrow"><b>Setor 05</b> · Embalagem e expedição</p>
+  <h2>Expedição</h2>
+  <p>Caixa com espuma moldada e lacre numerado. O caminhão encosta na doca e sai carregado toda noite.</p>
+  <div class="stats"><div><b>22h</b><small>saída diária</small></div><div><b>lacre</b><small>numerado</small></div><div><b>seguro</b><small>de carga total</small></div></div>
+</article>
+
+<article class="panel station" data-at="0.76">
+  <p class="eyebrow"><b>Em trânsito</b> · Rastreamento ao vivo</p>
+  <h2>Na estrada</h2>
+  <p>Você acompanha pelo app: saída da fábrica, centro de distribuição e rota até a sua rua, com a posição do caminhão.</p>
+  <div class="stats"><div><b>27</b><small>estados atendidos</small></div><div><b>5 min</b><small>atualização GPS</small></div><div><b>3–7</b><small>dias úteis</small></div></div>
+</article>
+
+<article class="panel station" data-at="0.90">
+  <p class="eyebrow"><b>Entrega</b> · Na porta de casa</p>
+  <h2>Chegou.</h2>
+  <p>O entregador confere o lacre com você na hora. Se a caixa chegar violada, a troca é imediata.</p>
+</article>
+
+<article class="panel station" data-at="1.0">
+  <p class="eyebrow"><b>Em casa</b> · Pronto para jogar</p>
+  <h2>Liga e joga.</h2>
+  <p>Windows ativado, drivers atualizados e perfil de RGB configurado. É só conectar o monitor e entrar na partida.</p>
+  <a class="btn" href="#monte">Montar meu PC</a>
+</article>
+
+<ol class="stops" aria-label="Setores do percurso">
+  <li><button type="button" data-go="0"><span>00</span>Fachada</button></li>
+  <li><button type="button" data-go="1"><span>01</span>Entrada</button></li>
+  <li><button type="button" data-go="2"><span>02</span>Engenharia</button></li>
+  <li><button type="button" data-go="3"><span>03</span>Montagem</button></li>
+  <li><button type="button" data-go="4"><span>04</span>Testes</button></li>
+  <li><button type="button" data-go="5"><span>05</span>Expedição</button></li>
+  <li><button type="button" data-go="6"><span>06</span>Estrada</button></li>
+  <li><button type="button" data-go="7"><span>07</span>Entrega</button></li>
+  <li><button type="button" data-go="8"><span>08</span>Em casa</button></li>
+</ol>
+<div class="coord" id="coord">FACHADA · Z +20,0 m</div>
+
+<div id="walk"></div>
+
+<div class="after">
+  <section class="contact" id="monte">
+    <div>
+      <p class="eyebrow">Configurador</p>
+      <h2>Monte o <span>seu.</span></h2>
+      <p>Diga como você joga e quanto quer investir. A engenharia devolve uma configuração com peças e preço em até um dia útil.</p>
+      <dl class="specs">
+        <div><dt>Fábrica</dt><dd>Polo Industrial de Manaus–AM (empresa fictícia)</dd></div>
+        <div><dt>Atendimento</dt><dd>(92) 0000-0000 · seg. a sáb., 8h às 20h</dd></div>
+        <div><dt>E-mail</dt><dd>vendas@nucleo.exemplo</dd></div>
+        <div><dt>Garantia</dt><dd>3 anos on-site, com coleta em casa</dd></div>
+      </dl>
+    </div>
+    <form id="build">
+      <div class="row2">
+        <label for="f-profile">Perfil<select id="f-profile"><option>Competitivo (240 FPS)</option><option>Streaming</option><option>Criação e edição</option><option>Primeiro PC</option></select></label>
+        <label for="f-budget">Orçamento<select id="f-budget"><option>Até R$ 5 mil</option><option selected>R$ 5 a 10 mil</option><option>R$ 10 a 20 mil</option><option>Acima de R$ 20 mil</option></select></label>
+      </div>
+      <div class="row2">
+        <label for="f-name">Nome<input id="f-name" autocomplete="name" required value="Lucas Andrade"></label>
+        <label for="f-mail">E-mail<input id="f-mail" type="email" autocomplete="email" required value="lucas@email.com"></label>
+      </div>
+      <label for="f-games">Jogos que você mais joga<textarea id="f-games">Valorant, CS2 e um pouco de Cyberpunk em 1440p.</textarea></label>
+      <button class="btn" type="submit">Pedir configuração</button>
+      <p class="sent" id="sent" aria-live="polite"></p>
+    </form>
+  </section>
+  <footer>
+    <p class="giant" aria-hidden="true">Núcleo</p>
+    <div class="foot"><span>Núcleo Hardware · site de demonstração</span><span>PCs · periféricos · headsets · monitores</span></div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var fontsReady = (document.fonts && document.fonts.load)
+    ? Promise.race([Promise.all([document.fonts.load("700 100px 'Chakra Petch'"), document.fonts.load("500 40px 'JetBrains Mono'")]), new Promise(function (r) { setTimeout(r, 1800); })])
+    : Promise.resolve();
+  fontsReady.then(init, init);
+
+  function init() {
+  var canvas = document.getElementById("scene");
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+
+  var BG = 0x07080d;
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(BG);
+  scene.fog = new THREE.Fog(BG, 16, 85);
+  var camera = new THREE.PerspectiveCamera(62, 1, 0.08, 400);
+  var maxAniso = renderer.capabilities.getMaxAnisotropy();
+  var DISPLAY = "'Chakra Petch', 'Arial Narrow', sans-serif", MONO = "'JetBrains Mono', monospace";
+
+  /* ---------- texturas ---------- */
+  function makeTex(w, h, draw, rx, ry) {
+    var c = document.createElement("canvas"); c.width = w; c.height = h;
+    draw(c.getContext("2d"), w, h);
+    var t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso;
+    if (rx) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); }
+    return t;
+  }
+  function noise(ctx, w, h, r, g, b, amp) {
+    var img = ctx.createImageData(w, h), d = img.data;
+    for (var i = 0; i < d.length; i += 4) { var n = (Math.random() - 0.5) * amp; d[i] = r + n; d[i + 1] = g + n; d[i + 2] = b + n; d[i + 3] = 255; }
+    ctx.putImageData(img, 0, 0);
+  }
+  var epoxy = makeTex(512, 512, function (ctx, w, h) {
+    noise(ctx, w, h, 70, 74, 84, 14);
+    ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = 2; ctx.strokeRect(0, 0, w, h);
+  }, 14, 38);
+  var asphalt = makeTex(256, 256, function (ctx, w, h) { noise(ctx, w, h, 38, 38, 42, 22); }, 6, 70);
+  var grass = makeTex(256, 256, function (ctx, w, h) { noise(ctx, w, h, 24, 34, 26, 20); }, 40, 60);
+  var panelTex = makeTex(256, 256, function (ctx, w, h) {
+    ctx.fillStyle = "#cfd3dc"; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(0,0,0,.18)"; for (var x = 0; x < w; x += 32) ctx.fillRect(x, 0, 2, h);
+  }, 24, 2);
+  var wood = makeTex(256, 256, function (ctx, w, h) {
+    for (var y = 0; y < h; y += 32) { var v = 80 + Math.random() * 30; ctx.fillStyle = "rgb(" + (v + 40) + "," + (v + 10) + "," + (v - 20) + ")"; ctx.fillRect(0, y, w, 31); }
+    ctx.fillStyle = "rgba(0,0,0,.3)"; for (var y2 = 0; y2 < h; y2 += 32) ctx.fillRect(0, y2 + 31, w, 1);
+  }, 4, 4);
+  var pcb = makeTex(256, 192, function (ctx, w, h) {
+    ctx.fillStyle = "#0f5a34"; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#c9a54a"; ctx.lineWidth = 2;
+    for (var i = 0; i < 26; i++) { ctx.beginPath(); var x = Math.random() * w, y = Math.random() * h; ctx.moveTo(x, y); ctx.lineTo(x + (Math.random() - 0.5) * 120, y); ctx.lineTo(x + (Math.random() - 0.5) * 120, y + (Math.random() - 0.5) * 80); ctx.stroke(); }
+    ctx.fillStyle = "#151515"; ctx.fillRect(96, 60, 64, 64); ctx.fillRect(20, 20, 40, 18); ctx.fillRect(190, 30, 22, 120); ctx.fillRect(220, 30, 22, 120);
+    ctx.fillStyle = "#e8e8e8"; ctx.font = "10px monospace"; ctx.fillText("NX-B760", 100, 140);
+  });
+  function screenTex(kind) {
+    return makeTex(1024, 576, function (ctx, w, h) {
+      if (kind === "cad") {
+        ctx.fillStyle = "#0a1424"; ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "rgba(35,213,240,.12)"; ctx.lineWidth = 1;
+        for (var x = 0; x < w; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+        for (var y = 0; y < h; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+        ctx.strokeStyle = "#23d5f0"; ctx.lineWidth = 3;
+        var o = [380, 140], a = [200, -80], b = [180, 90], c = 300;
+        function P(p) { return [o[0] + p[0], o[1] + p[1]]; }
+        var pts = [[0, 0], [a[0], a[1]], [a[0] + b[0], a[1] + b[1]], [b[0], b[1]]];
+        ctx.beginPath(); pts.forEach(function (p, i) { var q = P(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); pts.forEach(function (p, i) { var q = P(p); i ? ctx.lineTo(q[0], q[1] + c) : ctx.moveTo(q[0], q[1] + c); }); ctx.closePath(); ctx.stroke();
+        pts.forEach(function (p) { var q = P(p); ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0], q[1] + c); ctx.stroke(); });
+        ctx.strokeStyle = "#ff2e88"; [0, 1, 2].forEach(function (i) { ctx.beginPath(); ctx.arc(o[0] + 70 + i * 50, o[1] + 120 + i * 30, 22, 0, 7); ctx.stroke(); });
+        ctx.fillStyle = "#23d5f0"; ctx.font = "500 22px " + MONO;
+        ctx.fillText("GABINETE NX-4 · REV C", 30, 44); ctx.fillText("460 × 230 × 480 mm", 30, 76);
+        ctx.fillStyle = "#8f93a6"; ctx.fillText("FLUXO DE AR  142 CFM", 30, h - 40);
+      } else if (kind === "bench") {
+        ctx.fillStyle = "#0b0f17"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#eef0f6"; ctx.font = "700 34px " + DISPLAY; ctx.fillText("BURN-IN 24H · UNIDADE NX-4471", 34, 58);
+        ctx.font = "500 24px " + MONO; ctx.fillStyle = "#3dff8a"; ctx.fillText("CPU 78 °C   GPU 71 °C   APROVADO", 34, 104);
+        ctx.strokeStyle = "rgba(255,255,255,.12)"; for (var gy = 160; gy < h - 40; gy += 60) { ctx.beginPath(); ctx.moveTo(34, gy); ctx.lineTo(w - 34, gy); ctx.stroke(); }
+        ctx.lineWidth = 4; ctx.strokeStyle = "#23d5f0"; ctx.beginPath();
+        for (var i = 0; i <= 60; i++) { var X = 34 + i * (w - 68) / 60, Y = 300 - Math.sin(i * 0.4) * 30 - Math.random() * 20; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke();
+        ctx.strokeStyle = "#ff2e88"; ctx.beginPath();
+        for (var j = 0; j <= 60; j++) { var X2 = 34 + j * (w - 68) / 60, Y2 = 440 - Math.cos(j * 0.3) * 20 - Math.random() * 16; j ? ctx.lineTo(X2, Y2) : ctx.moveTo(X2, Y2); } ctx.stroke();
+        ctx.fillStyle = "#eef0f6"; ctx.font = "700 92px " + DISPLAY; ctx.textAlign = "right"; ctx.fillText("241 FPS", w - 40, h - 40);
+      } else {
+        var g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#1b1340"); g.addColorStop(0.55, "#d9487a"); g.addColorStop(0.62, "#ffb36b"); g.addColorStop(0.63, "#20152e"); g.addColorStop(1, "#0b0a14");
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#2a1a44"; ctx.beginPath(); ctx.moveTo(0, 360);
+        for (var mx = 0; mx <= w; mx += 64) ctx.lineTo(mx, 300 + Math.sin(mx * 0.013) * 40 + Math.cos(mx * 0.031) * 20);
+        ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.fill();
+        ctx.fillStyle = "#120c1e"; ctx.fillRect(640, 220, 70, 150); ctx.fillRect(730, 180, 50, 190); ctx.fillRect(120, 250, 90, 120);
+        ctx.strokeStyle = "rgba(35,213,240,.4)"; ctx.lineWidth = 2;
+        for (var k = 0; k < 12; k++) { ctx.beginPath(); ctx.moveTo(w / 2, 362); ctx.lineTo(-400 + k * 165, h); ctx.stroke(); }
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(w / 2 - 18, h / 2); ctx.lineTo(w / 2 - 6, h / 2); ctx.moveTo(w / 2 + 6, h / 2); ctx.lineTo(w / 2 + 18, h / 2);
+        ctx.moveTo(w / 2, h / 2 - 18); ctx.lineTo(w / 2, h / 2 - 6); ctx.moveTo(w / 2, h / 2 + 6); ctx.lineTo(w / 2, h / 2 + 18); ctx.stroke();
+        ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(30, h - 70, 260, 40);
+        ctx.fillStyle = "#3dff8a"; ctx.fillRect(36, h - 64, 200, 28);
+        ctx.fillStyle = "#fff"; ctx.font = "700 44px " + DISPLAY; ctx.textAlign = "right"; ctx.fillText("30 / 90", w - 40, h - 36);
+        ctx.font = "500 18px " + MONO; ctx.fillText("Lucas ▸ eliminou ▸ R4ven", w - 40, 50);
+        ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(90, 90, 60, 0, 7); ctx.stroke();
+        ctx.fillStyle = "#ff2e88"; ctx.beginPath(); ctx.arc(90, 90, 6, 0, 7); ctx.fill();
+      }
+    });
+  }
+  var texCad = screenTex("cad"), texBench = screenTex("bench"), texGame = screenTex("game");
+  var productBox = makeTex(256, 256, function (ctx, w, h) {
+    ctx.fillStyle = "#121318"; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#ff2e88"; ctx.fillRect(0, 180, w, 14);
+    ctx.fillStyle = "#23d5f0"; ctx.fillRect(0, 196, w, 4);
+    ctx.fillStyle = "#eef0f6"; ctx.font = "700 46px " + DISPLAY; ctx.textAlign = "center"; ctx.fillText("NÚCLEO", w / 2, 110);
+    ctx.font = "500 18px " + MONO; ctx.fillStyle = "#8f93a6"; ctx.fillText("NX-4 GAMER", w / 2, 145);
+  });
+  var cityTex = makeTex(128, 256, function (ctx, w, h) {
+    ctx.fillStyle = "#0c0e16"; ctx.fillRect(0, 0, w, h);
+    for (var y = 6; y < h; y += 14) for (var x = 6; x < w; x += 14) {
+      if (Math.random() < 0.28) { ctx.fillStyle = Math.random() < 0.8 ? "#ffcf86" : "#23d5f0"; ctx.globalAlpha = 0.5 + Math.random() * 0.5; ctx.fillRect(x, y, 7, 8); }
+    }
+  });
+  function signTex(text, color, sub, bg) {
+    return makeTex(1024, 256, function (ctx, w, h) {
+      if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
+      ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "700 " + (sub ? 128 : 180) + "px " + DISPLAY; ctx.fillText(text, w / 2, sub ? 98 : h / 2 + 6);
+      if (sub) { ctx.font = "500 42px " + MONO; ctx.fillStyle = bg ? "#0a0a0f" : "#c9ccd8"; ctx.fillText(sub, w / 2, 204); }
+    });
+  }
+  var halo = makeTex(128, 128, function (ctx, w, h) {
+    var g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.25, "rgba(255,255,255,.35)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  });
+
+  /* ---------- materiais e utilitários ---------- */
+  function std(color, rough, extra) {
+    var m = new THREE.MeshStandardMaterial({ color: color, roughness: rough == null ? 0.7 : rough, metalness: 0.1 });
+    if (extra) for (var k in extra) m[k] = extra[k];
+    return m;
+  }
+  function basic(color, extra) { var m = new THREE.MeshBasicMaterial({ color: color }); if (extra) for (var k in extra) m[k] = extra[k]; return m; }
+  var M = {
+    floor: std(0xffffff, 0.35, { map: epoxy }),
+    wall: std(0x2a2e38, 0.8, { map: panelTex }),
+    ceil: std(0x14161c, 0.9),
+    dark: std(0x17181d, 0.6),
+    steel: std(0x6b7180, 0.4, { metalness: 0.5 }),
+    white: std(0xe9eaee, 0.45),
+    caseM: std(0x101116, 0.35, { metalness: 0.3 }),
+    glass: std(0x9fd8ff, 0.1, { transparent: true, opacity: 0.1, depthWrite: false }),
+    tint: std(0x0a0c12, 0.1, { transparent: true, opacity: 0.55 }),
+    line: basic(0xc9a12a),
+    lamp: basic(0xeef4ff),
+    warm: basic(0xffd59a),
+    amber: std(0xff8a1a, 0.45),
+    pcb: std(0xffffff, 0.6, { map: pcb }),
+    product: std(0xffffff, 0.6, { map: productBox }),
+    asphalt: std(0x777777, 0.95, { map: asphalt }),
+    grass: std(0x777777, 1, { map: grass }),
+    wood: std(0xffffff, 0.6, { map: wood }),
+    skin: std(0xc68a62, 0.7),
+    hoodie: std(0x24324a, 0.85),
+    jeans: std(0x2b3550, 0.85),
+    hair: std(0x1a120c, 0.9)
+  };
+  var neonMats = {};
+  function neon(color) { return neonMats[color] || (neonMats[color] = basic(color)); }
+  var RGB = []; for (var ri = 0; ri < 6; ri++) RGB.push(basic(0xffffff));
+  function box(w, h, d, mat, x, y, z, parent) {
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x || 0, y || 0, z || 0); (parent || scene).add(m); return m;
+  }
+  function plane(w, h, mat, x, y, z, ry, parent) {
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.set(x, y, z); m.rotation.y = ry || 0; (parent || scene).add(m); return m;
+  }
+  function glow(color, size, x, y, z, opacity, parent) {
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, color: color, transparent: true, opacity: opacity || 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+    s.scale.set(size, size, 1); s.position.set(x, y, z); (parent || scene).add(s); return s;
+  }
+  function light(color, intensity, dist, x, y, z, parent) {
+    var l = new THREE.PointLight(color, intensity, dist, 1.6); l.position.set(x, y, z); (parent || scene).add(l); return l;
+  }
+
+  /* ---------- objetos reutilizáveis ---------- */
+  var fanGeo = new THREE.TorusGeometry(0.055, 0.011, 6, 22);
+  var fanSeed = 0;
+  function makePC(scale, parent) {
+    var g = new THREE.Group();
+    box(0.22, 0.46, 0.44, M.caseM, 0, 0.23, 0, g);
+    var rgb = RGB[(fanSeed++) % RGB.length];
+    [0.34, 0.22, 0.10].forEach(function (y) { var f = new THREE.Mesh(fanGeo, rgb); f.position.set(0, y, 0.222); g.add(f); });
+    plane(0.4, 0.4, M.tint, 0.112, 0.25, 0, Math.PI / 2, g);
+    box(0.01, 0.3, 0.3, M.pcb, -0.09, 0.27, -0.02, g);
+    box(0.12, 0.05, 0.26, M.dark, -0.03, 0.2, 0, g);
+    box(0.005, 0.02, 0.24, rgb, 0.035, 0.2, 0, g);
+    g.scale.setScalar(scale || 1);
+    (parent || scene).add(g);
+    return g;
+  }
+  function makeMonitor(tex, w, parent) {
+    var g = new THREE.Group(), h = w * 0.5625;
+    box(w + 0.03, h + 0.03, 0.03, M.dark, 0, h / 2 + 0.12, 0, g);
+    plane(w, h, basic(0xffffff, { map: tex }), 0, h / 2 + 0.12, 0.017, 0, g);
+    box(0.04, 0.12, 0.04, M.dark, 0, 0.06, -0.02, g);
+    box(0.22, 0.015, 0.16, M.dark, 0, 0.007, -0.02, g);
+    (parent || scene).add(g);
+    return g;
+  }
+  function makeDesk(w, d, parent) {
+    var g = new THREE.Group();
+    box(w, 0.04, d, M.dark, 0, 0.74, 0, g);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (s) { box(0.04, 0.72, 0.04, M.steel, s[0] * (w / 2 - 0.05), 0.36, s[1] * (d / 2 - 0.05), g); });
+    (parent || scene).add(g);
+    return g;
+  }
+
+  /* ---------- luzes ---------- */
+  var hemi = new THREE.HemisphereLight(0xc8d4ff, 0x1a1420, 0.5); scene.add(hemi);
+  [-6, -21, -37, -53, -68].forEach(function (z) { light(0xe8efff, 1.05, 24, 0, 7, z); });
+  light(0xff2e88, 2.2, 16, 0, 4, 3);
+  [[-10, -100], [-10, -140], [-10, -180]].forEach(function (p) { light(0xffb66b, 1.3, 26, p[0], 6, p[1]); });
+
+  /* ---------- fábrica: casca ---------- */
+  var FW = 14, FL = 77, FH = 8;
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(FW * 2, FL), M.floor);
+  floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, -FL / 2); scene.add(floor);
+  var lot = new THREE.Mesh(new THREE.PlaneGeometry(80, 36), M.asphalt); lot.rotation.x = -Math.PI / 2; lot.position.set(0, -0.01, 18); scene.add(lot);
+  box(0.3, FH, FL, M.wall, -FW - 0.15, FH / 2, -FL / 2);
+  box(0.3, FH, FL, M.wall, FW + 0.15, FH / 2, -FL / 2);
+  box(FW * 2 + 0.6, 0.3, FL, M.ceil, 0, FH + 0.15, -FL / 2);
+  // fachada com entrada
+  box(11, FH, 0.4, M.wall, -8.5, FH / 2, 0); box(11, FH, 0.4, M.wall, 8.5, FH / 2, 0); box(6, FH - 4.2, 0.4, M.wall, 0, 4.2 + (FH - 4.2) / 2, 0);
+  box(0.12, 4.2, 0.12, neon(0xff2e88), -3, 2.1, 0.25); box(0.12, 4.2, 0.12, neon(0xff2e88), 3, 2.1, 0.25); box(6.12, 0.12, 0.12, neon(0x23d5f0), 0, 4.2, 0.25);
+  for (var gy = 0.5; gy < 4.2; gy += 0.9) { glow(0xff2e88, 2.2, -3, gy, 0.4, 0.5); glow(0xff2e88, 2.2, 3, gy, 0.4, 0.5); }
+  plane(10, 2.5, basic(0xffffff, { map: signTex("NÚCLEO", "#ff2e88"), transparent: true }), 0, 6.1, 0.22);
+  plane(8, 1, basic(0xffffff, { map: makeTex(1024, 128, function (ctx, w, h) { ctx.fillStyle = "#c9ccd8"; ctx.font = "500 58px " + MONO; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("HARDWARE · FÁBRICA MANAUS", w / 2, h / 2); }), transparent: true }), 0, 4.85, 0.22);
+  glow(0xff2e88, 14, 0, 6.1, 0.6, 0.18);
+  var lotGlow = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), basic(0xff2e88, { map: halo, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+  lotGlow.rotation.x = -Math.PI / 2; lotGlow.position.set(0, 0.01, 2); scene.add(lotGlow);
+  // parede do fundo com doca
+  box(5.5, FH, 0.4, M.wall, -11.25, FH / 2, -FL); box(13.5, FH, 0.4, M.wall, 6.75, FH / 2, -FL); box(8, FH - 5, 0.4, M.wall, -4.5, 5 + (FH - 5) / 2, -FL);
+  box(8.2, 0.12, 0.12, neon(0xffb020), -4.5, 5, -FL + 0.25);
+  // luminárias lineares
+  var lampGeo = new THREE.BoxGeometry(0.18, 0.05, 3.2);
+  [-7, 0, 7].forEach(function (x) { for (var z = -4; z > -FL; z -= 5) { var l = new THREE.Mesh(lampGeo, M.lamp); l.position.set(x, FH - 0.1, z); scene.add(l); } });
+  // faixas de piso
+  box(0.1, 0.01, FL - 2, M.line, -2.2, 0.005, -FL / 2); box(0.1, 0.01, FL - 2, M.line, 2.2, 0.005, -FL / 2);
+
+  function partition(z, color, label) {
+    var gm = M.glass;
+    box(10.5, FH, 0.05, gm, -8.75, FH / 2, z); box(10.5, FH, 0.05, gm, 8.75, FH / 2, z); box(7, FH - 4.5, 0.05, gm, 0, 4.5 + (FH - 4.5) / 2, z);
+    for (var x = -13; x <= 13; x += 2.5) if (Math.abs(x) > 3.6) box(0.05, FH, 0.08, M.dark, x, FH / 2, z);
+    box(0.09, 4.5, 0.09, neon(color), -3.5, 2.25, z); box(0.09, 4.5, 0.09, neon(color), 3.5, 2.25, z); box(7.09, 0.09, 0.09, neon(color), 0, 4.5, z);
+    glow(color, 3, -3.5, 4.4, z + 0.1, 0.45); glow(color, 3, 3.5, 4.4, z + 0.1, 0.45);
+    var hex = "#" + new THREE.Color(color).getHexString();
+    plane(4.4, 1.1, basic(0xffffff, { map: signTex(label[0], hex, label[1]), transparent: true }), 0, 5.6, z + 0.06);
+  }
+  partition(-14, 0x23d5f0, ["02 · ENGENHARIA", "P&D · CAD · PROTÓTIPOS"]);
+  partition(-28, 0xffb020, ["03 · MONTAGEM", "LINHA SMT · INTEGRAÇÃO"]);
+  partition(-46, 0x3dff8a, ["04 · TESTES", "BURN-IN 24 H · QA"]);
+  partition(-60, 0xff2e88, ["05 · EXPEDIÇÃO", "EMBALAGEM · DOCA D-01"]);
+
+  /* ---------- setor 01: recepção ---------- */
+  plane(5.2, 1.3, basic(0xffffff, { map: signTex("01 · RECEPÇÃO", "#ff2e88", "SHOWROOM · VISITAS"), transparent: true }), 0, 5.6, -0.25, Math.PI);
+  var desk = box(3.4, 1.1, 0.8, M.white, 5, 0.55, -8);
+  box(3.42, 0.08, 0.82, neon(0xff2e88), 5, 0.2, -8);
+  plane(6, 1.5, basic(0xffffff, { map: signTex("NÚCLEO", "#eef0f6"), transparent: true }), 13.8, 4, -8, -Math.PI / 2);
+  var showcase = [];
+  [-5, -8.2, -11.4].forEach(function (z, i) {
+    box(1.1, 0.9, 1.1, M.white, -4.6, 0.45, z);
+    box(1.12, 0.04, 1.12, RGB[i], -4.6, 0.9, z);
+    var pc = makePC(2.0); pc.position.set(-4.6, 0.92, z); showcase.push(pc);
+    glow(0xff2e88, 2.2, -4.6, 1.5, z, 0.18);
+  });
+  // periféricos em vitrine
+  box(1.6, 0.8, 0.8, M.white, -9, 0.4, -6);
+  box(0.9, 0.04, 0.3, M.caseM, -9.2, 0.82, -6); box(0.9, 0.012, 0.02, RGB[3], -9.2, 0.845, -5.86);
+  var hs = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 8, 24, Math.PI), M.caseM); hs.position.set(-8.4, 0.85, -6); scene.add(hs);
+  box(0.1, 0.12, 0.08, RGB[4], -8.58, 0.86, -6); box(0.1, 0.12, 0.08, RGB[4], -8.22, 0.86, -6);
+
+  /* ---------- setor 02: engenharia ---------- */
+  [[-5.5, -18], [-5.5, -23], [5.5, -18], [5.5, -23]].forEach(function (p) {
+    var d = makeDesk(2.2, 0.9); d.position.set(p[0], 0, p[1]);
+    var m1 = makeMonitor(texCad, 0.62); m1.position.set(p[0] - 0.36, 0.76, p[1] - 0.25);
+    var m2 = makeMonitor(texBench, 0.62); m2.position.set(p[0] + 0.36, 0.76, p[1] - 0.25); m2.rotation.y = -0.15;
+    box(0.5, 0.02, 0.18, M.caseM, p[0], 0.77, p[1] + 0.15);
+    box(0.5, 0.5, 0.5, M.dark, p[0], 0.25, p[1] + 0.8);
+  });
+  plane(6, 3.375, basic(0xffffff, { map: texCad }), -13.8, 3.3, -21, Math.PI / 2);
+  // impressora 3D
+  box(1.0, 0.06, 1.0, M.dark, 9.5, 1.0, -26); box(1.0, 0.06, 1.0, M.dark, 9.5, 2.1, -26);
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (s) { box(0.05, 2.1, 0.05, M.steel, 9.5 + s[0] * 0.47, 1.05, -26 + s[1] * 0.47); });
+  box(0.9, 0.9, 0.9, M.dark, 9.5, 0.45, -26);
+  var printPart = box(0.3, 0.25, 0.3, neon(0x23d5f0), 9.5, 1.16, -26);
+
+  /* ---------- setor 03: montagem ---------- */
+  box(1.1, 0.12, 16, M.dark, -4, 0.86, -37);
+  for (var lz = -29.5; lz > -45; lz -= 1.5) { box(0.06, 0.8, 0.06, M.steel, -4.5, 0.4, lz); box(0.06, 0.8, 0.06, M.steel, -3.5, 0.4, lz); }
+  box(0.04, 0.04, 16, neon(0xffb020), -3.42, 0.93, -37);
+  var boards = [];
+  for (var bi = 0; bi < 18; bi++) { boards.push(box(0.55, 0.03, 0.4, M.pcb, -4, 0.94, -30)); }
+  function makeRobot() {
+    var g = new THREE.Group();
+    var base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 20), M.dark); base.position.y = 0.15; g.add(base);
+    var yaw = new THREE.Group(); yaw.position.y = 0.3; g.add(yaw);
+    var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3, 16), M.amber); sh.position.y = 0.15; yaw.add(sh);
+    var a1 = new THREE.Group(); a1.position.y = 0.3; yaw.add(a1);
+    box(0.16, 1.0, 0.16, M.amber, 0, 0.5, 0, a1);
+    var a2 = new THREE.Group(); a2.position.y = 1.0; a1.add(a2);
+    var el = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), M.dark); a2.add(el);
+    box(0.12, 0.85, 0.12, M.amber, 0, 0.42, 0, a2);
+    box(0.18, 0.08, 0.18, M.dark, 0, 0.88, 0, a2);
+    box(0.03, 0.12, 0.06, M.steel, -0.05, 0.98, 0, a2); box(0.03, 0.12, 0.06, M.steel, 0.05, 0.98, 0, a2);
+    box(0.02, 0.02, 0.02, neon(0x3dff8a), 0, 0.8, 0.07, a2);
+    scene.add(g);
+    return { g: g, yaw: yaw, a1: a1, a2: a2 };
+  }
+  var robots = [-32, -36.5, -41].map(function (z) { var r = makeRobot(); r.g.position.set(-5.7, 0, z); return r; });
+  [-31, -35, -39, -43].forEach(function (z, i) {
+    var d = makeDesk(2.0, 0.9); d.position.set(5.2, 0, z);
+    var pc = makePC(1.3); pc.position.set(5.2 + (i % 2 ? 0.4 : -0.3), 0.76, z); pc.rotation.y = -Math.PI / 2 + 0.3;
+    box(0.6, 0.3, 0.5, M.white, 4.5, 0.9, z + 0.1).material = M.product;
+    box(0.04, 1.6, 0.04, M.steel, 6.2, 1.5, z - 0.4); box(1.4, 0.06, 0.18, M.lamp, 5.5, 2.3, z - 0.4);
+  });
+
+  /* ---------- setor 04: testes ---------- */
+  var rackPCs = [];
+  [-5.8, 5.8].forEach(function (x) {
+    for (var lv = 0; lv < 3; lv++) {
+      box(1.0, 0.05, 12, M.steel, x, 0.3 + lv * 1.1, -53);
+      for (var z = -47.6; z > -58.6; z -= 0.85) { var pc = makePC(1.25); pc.position.set(x, 0.33 + lv * 1.1, z); pc.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2; rackPCs.push(pc); }
+    }
+    [-47, -59].forEach(function (z) { box(0.06, 3.6, 0.06, M.steel, x - 0.45, 1.8, z); box(0.06, 3.6, 0.06, M.steel, x + 0.45, 1.8, z); });
+  });
+  var bigBench = makeMonitor(texBench, 3.2); bigBench.position.set(-8.5, 3.2, -59.6);
+  var bigBench2 = makeMonitor(texBench, 3.2); bigBench2.position.set(8.5, 3.2, -59.6);
+
+  /* ---------- setor 05: expedição ---------- */
+  box(1.0, 0.1, 14, M.dark, 4, 0.8, -68); box(0.04, 0.04, 14, neon(0xff2e88), 4.53, 0.86, -68);
+  for (var cz = -61.5; cz > -75; cz -= 1.5) { box(0.06, 0.75, 0.06, M.steel, 3.55, 0.38, cz); box(0.06, 0.75, 0.06, M.steel, 4.45, 0.38, cz); }
+  var parcels = [];
+  for (var pi = 0; pi < 10; pi++) parcels.push(box(0.62, 0.48, 0.52, M.product, 4, 1.1, -61));
+  [[-10, -64], [-10, -67], [-7.5, -64], [-7.5, -67], [-10, -70]].forEach(function (p) {
+    box(1.2, 0.14, 1.0, std(0x8a6a44, 0.9), p[0], 0.07, p[1]);
+    for (var sy = 0; sy < 3; sy++) for (var sx = -1; sx <= 1; sx += 2) box(0.56, 0.46, 0.94, M.product, p[0] + sx * 0.29, 0.38 + sy * 0.47, p[1]);
+  });
+
+  /* ---------- exterior: estrada, cidade, casa ---------- */
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 170), M.grass); ground.rotation.x = -Math.PI / 2; ground.position.set(0, -0.02, -FL - 85); scene.add(ground);
+  var road = new THREE.Mesh(new THREE.PlaneGeometry(10, 132), M.asphalt); road.rotation.x = -Math.PI / 2; road.position.set(-4.5, 0.0, -FL - 66); scene.add(road);
+  for (var rz = -80; rz > -205; rz -= 5) box(0.15, 0.01, 2.4, M.line, -4.5, 0.01, rz);
+  box(0.12, 0.01, 130, basic(0xd9d9d9), -9.3, 0.01, -FL - 66); box(0.12, 0.01, 130, basic(0xd9d9d9), 0.3, 0.01, -FL - 66);
+  for (var sz = -88; sz > -200; sz -= 18) {
+    box(0.14, 6, 0.14, M.dark, -10, 3, sz); box(1.4, 0.1, 0.3, M.warm, -9.4, 6, sz); glow(0xffb66b, 4, -9.4, 5.9, sz, 0.6);
+  }
+  var trunkGeo = new THREE.CylinderGeometry(0.12, 0.16, 1.4, 8), crownGeo = new THREE.ConeGeometry(1.1, 3.2, 9), treeMat = std(0x16301f, 0.9);
+  for (var tz = -84; tz > -200; tz -= 9) [-12.5, 3.2].forEach(function (x, i) {
+    if (i === 1 && tz < -194) return;
+    var t = new THREE.Mesh(trunkGeo, M.dark); t.position.set(x + Math.random(), 0.7, tz + Math.random() * 3); scene.add(t);
+    var c = new THREE.Mesh(crownGeo, treeMat); c.position.set(t.position.x, 2.9, t.position.z); scene.add(c);
+  });
+  var cityMat = basic(0xffffff, { map: cityTex });
+  for (var bz = -90; bz > -240; bz -= 11) [-1, 1].forEach(function (side) {
+    var w = 6 + Math.random() * 8, h = 8 + Math.random() * 26;
+    var t = cityTex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / 6, h / 10);
+    box(w, h, 7, basic(0xffffff, { map: t }), side * (34 + Math.random() * 18), h / 2, bz);
+  });
+  var starGeo = new THREE.BufferGeometry(), sp = [];
+  for (var si = 0; si < 700; si++) { var th = Math.random() * Math.PI * 2, ph = Math.random() * 0.45 * Math.PI; sp.push(Math.cos(th) * Math.cos(ph) * 220, 20 + Math.sin(ph) * 200, -120 + Math.sin(th) * Math.cos(ph) * 220); }
+  starGeo.setAttribute("position", new THREE.Float32BufferAttribute(sp, 3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 })));
+
+  // casa
+  var HZ = -206, HX = 4;
+  var houseWall = std(0xd9d2c4, 0.85), roomWall = std(0x1b1d2a, 0.9);
+  box(3.8, 3, 0.25, houseWall, HX - 3.1, 1.5, HZ); box(3.8, 3, 0.25, houseWall, HX + 3.1, 1.5, HZ); box(2.4, 0.6, 0.25, houseWall, HX, 2.7, HZ);
+  box(0.25, 3, 10, houseWall, HX - 5, 1.5, HZ - 5); box(0.25, 3, 10, houseWall, HX + 5, 1.5, HZ - 5); box(10.25, 3, 0.25, roomWall, HX, 1.5, HZ - 10);
+  plane(9.7, 2.9, roomWall, HX - 4.86, 1.5, HZ - 5, Math.PI / 2); plane(9.7, 2.9, roomWall, HX + 4.86, 1.5, HZ - 5, -Math.PI / 2);
+  plane(3.6, 2.9, roomWall, HX - 3.1, 1.5, HZ - 0.14, Math.PI); plane(3.6, 2.9, roomWall, HX + 3.1, 1.5, HZ - 0.14, Math.PI);
+  var roof = new THREE.Mesh(new THREE.ConeGeometry(8.2, 2.6, 4), std(0x3a2a24, 0.9)); roof.rotation.y = Math.PI / 4; roof.position.set(HX, 4.3, HZ - 5); scene.add(roof);
+  box(10.3, 0.2, 10.3, std(0x2a2a30, 0.9), HX, 3.05, HZ - 5);
+  var hf = new THREE.Mesh(new THREE.PlaneGeometry(9.8, 9.8), M.wood); hf.rotation.x = -Math.PI / 2; hf.position.set(HX, 0.01, HZ - 5); scene.add(hf);
+  plane(1.6, 1.1, M.warm, HX - 3, 1.7, HZ + 0.13); plane(1.6, 1.1, M.warm, HX + 3, 1.7, HZ + 0.13);
+  glow(0xffd59a, 3, HX - 3, 1.7, HZ + 0.4, 0.35); glow(0xffd59a, 3, HX + 3, 1.7, HZ + 0.4, 0.35);
+  box(0.2, 0.2, 0.1, M.warm, HX + 1.5, 2.5, HZ + 0.18); glow(0xffd59a, 2, HX + 1.5, 2.5, HZ + 0.4, 0.6);
+  box(6, 0.12, 3.6, std(0x5d5f66, 0.9), HX, 0.06, HZ + 1.8);
+  var parcel = box(0.62, 0.48, 0.52, M.product, HX + 1.9, 0.36, HZ + 1.2); parcel.rotation.y = 0.3;
+  light(0xffd2a0, 1.1, 12, HX, 2.6, HZ - 4);
+  var rgbLight = light(0xff2e88, 1.6, 7, HX, 1.4, HZ - 8.6);
+
+  // setup gamer
+  var DX = HX, DZ = HZ - 9.45;
+  var gd = makeDesk(2.4, 0.85); gd.position.set(DX, 0, DZ);
+  var main = makeMonitor(texGame, 1.05); main.position.set(DX, 0.76, DZ - 0.2);
+  var side = makeMonitor(texBench, 0.6); side.position.set(DX + 0.95, 0.76, DZ - 0.1); side.rotation.y = -0.45;
+  var homePC = makePC(1.6); homePC.position.set(DX - 1.0, 0.76, DZ - 0.05); homePC.rotation.y = Math.PI / 2 - 0.4;
+  box(0.48, 0.025, 0.16, M.caseM, DX - 0.05, 0.775, DZ + 0.2); box(0.48, 0.006, 0.02, RGB[2], DX - 0.05, 0.79, DZ + 0.28);
+  var mouseObj = box(0.06, 0.03, 0.1, M.caseM, DX + 0.35, 0.775, DZ + 0.2);
+  box(0.8, 0.004, 0.35, M.dark, DX + 0.3, 0.762, DZ + 0.2);
+  var ledStrip = box(3.2, 0.04, 0.04, RGB[0], DX, 2.2, HZ - 9.85);
+  var underGlow = glow(0xff2e88, 4, DX, 1.5, HZ - 9.7, 0.35);
+  plane(1.0, 1.4, basic(0xffffff, { map: makeTex(256, 360, function (ctx, w, h) { ctx.fillStyle = "#14102a"; ctx.fillRect(0, 0, w, h); ctx.fillStyle = "#ff2e88"; ctx.font = "700 56px " + DISPLAY; ctx.textAlign = "center"; ctx.fillText("NÚCLEO", w / 2, 300); ctx.strokeStyle = "#23d5f0"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(128, 40); ctx.lineTo(220, 92); ctx.lineTo(220, 196); ctx.lineTo(128, 248); ctx.lineTo(36, 196); ctx.lineTo(36, 92); ctx.closePath(); ctx.stroke(); }) }), HX - 4.85, 1.7, HZ - 7, Math.PI / 2);
+  // jogador
+  var player = new THREE.Group(); player.position.set(DX, 0, DZ + 0.9); scene.add(player);
+  var chairMat = std(0x111217, 0.6);
+  box(0.56, 0.1, 0.55, chairMat, 0, 0.5, 0, player); box(0.56, 0.9, 0.1, chairMat, 0, 1.0, 0.3, player);
+  box(0.06, 0.88, 0.11, neon(0xff2e88), -0.22, 1.0, 0.3, player); box(0.06, 0.88, 0.11, neon(0xff2e88), 0.22, 1.0, 0.3, player);
+  var post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4, 10), M.steel); post.position.y = 0.25; player.add(post);
+  box(0.6, 0.04, 0.08, M.dark, 0, 0.05, 0, player); box(0.08, 0.04, 0.6, M.dark, 0, 0.05, 0, player);
+  [-0.11, 0.11].forEach(function (x) { box(0.15, 0.14, 0.46, M.jeans, x, 0.62, -0.18, player); box(0.13, 0.5, 0.13, M.jeans, x, 0.32, -0.42, player); box(0.13, 0.07, 0.24, M.dark, x, 0.04, -0.48, player); });
+  var torso = box(0.42, 0.6, 0.24, M.hoodie, 0, 0.92, 0.06, player); torso.rotation.x = -0.12;
+  var head = new THREE.Group(); head.position.set(0, 1.36, 0.0); player.add(head);
+  var skull = new THREE.Mesh(new THREE.SphereGeometry(0.115, 18, 14), M.skin); head.add(skull);
+  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.122, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), M.hair); hair.rotation.x = 0.35; head.add(hair);
+  var band = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.016, 8, 20, Math.PI), M.caseM); band.rotation.z = 0; head.add(band);
+  [-0.125, 0.125].forEach(function (x) { var cup = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 16), M.caseM); cup.rotation.z = Math.PI / 2; cup.position.set(x, 0, 0); head.add(cup); box(0.005, 0.05, 0.05, RGB[1], x * 1.18, 0, 0, head); });
+  var armL = new THREE.Group(); armL.position.set(-0.25, 1.12, 0.06); player.add(armL);
+  box(0.1, 0.1, 0.62, M.hoodie, 0, -0.18, -0.26, armL).rotation.x = 0.55;
+  var armR = new THREE.Group(); armR.position.set(0.25, 1.12, 0.06); player.add(armR);
+  box(0.1, 0.1, 0.62, M.hoodie, 0, -0.18, -0.26, armR).rotation.x = 0.55;
+  var handR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), M.skin); handR.position.set(0.32, 0.81, -0.67); player.add(handR);
+  var handL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), M.skin); handL.position.set(-0.2, 0.81, -0.68); player.add(handL);
+
+  /* ---------- caminhão ---------- */
+  function makeTruck() {
+    var g = new THREE.Group(); // origem na traseira, frente para -z
+    var trailer = std(0x101116, 0.45, { metalness: 0.3 });
+    box(2.6, 2.9, 12, trailer, 0, 2.65, -6, g);
+    box(2.62, 0.18, 12.02, neon(0xff2e88), 0, 1.35, -6, g);
+    box(2.62, 0.06, 12.02, neon(0x23d5f0), 0, 4.0, -6, g);
+    [1, -1].forEach(function (s) { plane(8, 2, basic(0xffffff, { map: signTex("NÚCLEO", "#eef0f6"), transparent: true }), s * 1.31, 2.7, -6, s * Math.PI / 2, g); });
+    box(2.2, 0.35, 14, M.dark, 0, 0.95, -6.8, g);
+    box(2.5, 2.5, 2.3, std(0x1c1d24, 0.4, { metalness: 0.4 }), 0, 2.2, -13.4, g);
+    box(2.52, 0.12, 2.32, neon(0xff2e88), 0, 1.4, -13.4, g);
+    box(2.2, 1.0, 0.05, std(0x0d1218, 0.1, { metalness: 0.7 }), 0, 2.8, -14.57, g);
+    [-0.95, 0.95].forEach(function (x) { box(0.35, 0.16, 0.05, M.lamp, x, 1.25, -14.58, g); glow(0xeef4ff, 1.8, x, 1.25, -14.8, 0.9, g); });
+    [-0.9, 0.9].forEach(function (x) { box(0.3, 0.12, 0.04, neon(0xff1a2e), x, 1.0, 0.02, g); });
+    var wheels = [], wg = new THREE.CylinderGeometry(0.5, 0.5, 0.42, 20);
+    [-1.2, -2.4, -11, -13.6].forEach(function (z) { [-1.1, 1.1].forEach(function (x) { var w = new THREE.Mesh(wg, M.dark); w.rotation.z = Math.PI / 2; w.position.set(x, 0.5, z); g.add(w); wheels.push(w); }); });
+    g.userData.wheels = wheels;
+    light(0xeef4ff, 1.4, 22, 0, 1.6, -17, g);
+    scene.add(g);
+    return g;
+  }
+  var truck = makeTruck();
+  var TX = -4.5, T0 = -FL - 0.8, T1 = HZ + 19.6;
+  truck.position.set(TX, 0, T0);
+
+  /* ---------- percurso ---------- */
+  var KEYS = [
+    { p: 0.00, pos: [1.5, 1.7, 19],    look: [-6.5, 3.6, 0] },
+    { p: 0.10, pos: [0.4, 1.7, -2.5],  look: [-4.6, 1.5, -8.4] },
+    { p: 0.24, pos: [0.6, 1.7, -16],   look: [-5.5, 1.2, -21] },
+    { p: 0.38, pos: [0.8, 1.9, -31],   look: [-4.2, 0.9, -37] },
+    { p: 0.50, pos: [0, 1.7, -48.5],   look: [5, 1.4, -54] },
+    { p: 0.62, pos: [-1.2, 2.0, -64],  look: [-4.5, 1.9, -82] },
+    { p: 0.90, pos: [HX - 1.4, 1.75, HZ + 8.5], look: [HX + 0.6, 1.0, HZ] },
+    { p: 1.00, pos: [HX + 2.3, 1.65, DZ + 2.1], look: [DX - 0.35, 1.0, DZ - 0.15] }
+  ];
+  var STOPS = [0, 0.10, 0.24, 0.38, 0.50, 0.62, 0.76, 0.90, 1.0];
+  var NAMES = ["FACHADA", "SETOR 01", "SETOR 02", "SETOR 03", "SETOR 04", "SETOR 05", "ESTRADA", "ENTREGA", "EM CASA"];
+  function ss(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  var kPos = new THREE.Vector3(), kLook = new THREE.Vector3(), cPos = new THREE.Vector3(), cLook = new THREE.Vector3();
+  function truckZ(p) { return T0 + (T1 - T0) * ss(0.64, 0.87, p); }
+  function sample(p) {
+    var i = 0;
+    while (i < KEYS.length - 2 && p > KEYS[i + 1].p) i++;
+    var a = KEYS[i], b = KEYS[i + 1], t = ss(a.p, b.p, p);
+    kPos.set(a.pos[0] + (b.pos[0] - a.pos[0]) * t, a.pos[1] + (b.pos[1] - a.pos[1]) * t, a.pos[2] + (b.pos[2] - a.pos[2]) * t);
+    kLook.set(a.look[0] + (b.look[0] - a.look[0]) * t, a.look[1] + (b.look[1] - a.look[1]) * t, a.look[2] + (b.look[2] - a.look[2]) * t);
+    var w = ss(0.62, 0.665, p) * (1 - ss(0.855, 0.895, p));
+    if (w > 0) {
+      var tz = truckZ(p);
+      cPos.set(TX + 2.7, 3.1, tz + 8.5); cLook.set(TX + 0.4, 1.8, tz - 12);
+      kPos.lerp(cPos, w); kLook.lerp(cLook, w);
+    }
+  }
+
+  /* ---------- interface ---------- */
+  var walk = document.getElementById("walk"), hero = document.getElementById("hero");
+  var panels = [].slice.call(document.querySelectorAll(".station"));
+  var stopBtns = [].slice.call(document.querySelectorAll(".stops button"));
+  var bar = document.getElementById("bar"), coord = document.getElementById("coord");
+  function walkRange() { return Math.max(1, walk.offsetHeight - window.innerHeight); }
+  function scrollProgress() { return Math.min(1, Math.max(0, window.scrollY / walkRange())); }
+  document.querySelectorAll("[data-go]").forEach(function (el) {
+    el.addEventListener("click", function (e) { e.preventDefault(); window.scrollTo({ top: STOPS[+el.dataset.go] * walkRange(), behavior: reduce ? "auto" : "smooth" }); });
+  });
+  document.getElementById("build").addEventListener("submit", function (e) {
+    e.preventDefault();
+    document.getElementById("sent").textContent = "Pedido registrado nesta página. Este é um site de demonstração e nada foi enviado.";
+  });
+  var mouse = { x: 0, y: 0, tx: 0, ty: 0 };
+  window.addEventListener("pointermove", function (e) {
+    if (e.pointerType !== "mouse") return;
+    mouse.tx = (e.clientX / window.innerWidth) * 2 - 1; mouse.ty = (e.clientY / window.innerHeight) * 2 - 1;
+  });
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 76 : 62; camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize); resize();
+
+  var prog = scrollProgress(), phase = 0, amp = 0, last = performance.now(), clock = 0;
+  var prev = new THREE.Vector3(); sample(prog); prev.copy(kPos);
+  var prevTruckZ = truckZ(prog);
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+    prog += (scrollProgress() - prog) * (1 - Math.exp(-dt * (reduce ? 20 : 4)));
+
+    bar.style.transform = "scaleX(" + prog.toFixed(4) + ")";
+    hero.style.opacity = Math.max(0, Math.min(1, (0.06 - prog) / 0.035));
+    hero.style.transform = "translateY(" + (-Math.min(prog, 0.07) * 400) + "px)";
+    hero.style.pointerEvents = prog < 0.04 ? "auto" : "none";
+    panels.forEach(function (el) {
+      var at = +el.dataset.at, d = Math.abs(prog - at);
+      var o = Math.max(0, Math.min(1, (0.055 - d) / 0.03));
+      el.style.opacity = o; el.style.transform = "translateY(" + ((prog - at) * -320) + "px)";
+      el.classList.toggle("on", o > 0.5);
+    });
+    var active = 0;
+    STOPS.forEach(function (s, i) { if (prog >= s - 0.05) active = i; });
+    stopBtns.forEach(function (b, i) { b.classList.toggle("on", i === active); });
+    if (window.scrollY > walk.offsetHeight + 40) return;
+
+    // caminhão
+    var tz = truckZ(prog);
+    truck.position.z = tz;
+    var moved = tz - prevTruckZ; prevTruckZ = tz;
+    truck.userData.wheels.forEach(function (w) { w.rotation.x += moved / 0.5; });
+    parcel.scale.setScalar(Math.max(0.001, ss(0.86, 0.9, prog)));
+
+    // câmera com passos (a pé) ou suave (seguindo o caminhão)
+    sample(prog);
+    var dist = kPos.distanceTo(prev); prev.copy(kPos);
+    var onFoot = 1 - ss(0.62, 0.665, prog) * (1 - ss(0.855, 0.895, prog));
+    amp += (Math.min(1, dist / Math.max(dt, 1e-4) / 2.2) - amp) * (1 - Math.exp(-dt * 6));
+    phase += dist * Math.PI / 0.78;
+    var bob = reduce ? 0 : amp * onFoot;
+    camera.position.copy(kPos);
+    camera.position.y += (Math.abs(Math.sin(phase)) - 0.5) * 0.07 * bob;
+    camera.position.x += Math.sin(phase) * 0.035 * bob;
+    mouse.x += (mouse.tx - mouse.x) * (1 - Math.exp(-dt * 3)); mouse.y += (mouse.ty - mouse.y) * (1 - Math.exp(-dt * 3));
+    var look = 1 - ss(0.95, 1, prog) * 0.6;
+    kLook.x += mouse.x * 1.4 * look; kLook.y -= mouse.y * 0.7 * look;
+    camera.lookAt(kLook);
+    camera.rotateZ(Math.sin(phase) * 0.006 * bob);
+    var ai = 0; STOPS.forEach(function (s, i) { if (prog >= s - 0.05) ai = i; });
+    coord.textContent = NAMES[ai] + " · Z " + (camera.position.z >= 0 ? "+" : "") + camera.position.z.toFixed(1).replace(".", ",") + " m";
+
+    // animações da fábrica
+    var t = clock;
+    RGB.forEach(function (m, i) { m.color.setHSL((t * 0.07 + i / RGB.length) % 1, 1, 0.55); });
+    rgbLight.color.copy(RGB[0].color); underGlow.material.color.copy(RGB[0].color);
+    showcase.forEach(function (pc, i) { pc.rotation.y = t * 0.4 + i * 2; });
+    robots.forEach(function (r, i) {
+      var s = Math.sin(t * 1.3 + i * 1.7);
+      r.yaw.rotation.y = s * 0.55;
+      r.a1.rotation.z = -0.55 + Math.sin(t * 1.3 + i * 1.7 + 0.8) * 0.22;
+      r.a2.rotation.z = -1.35 + Math.sin(t * 2.6 + i) * 0.25;
+    });
+    boards.forEach(function (b, i) { b.position.z = -29.6 - ((i * 0.86 + t * 0.55) % 15.4); });
+    parcels.forEach(function (b, i) { b.position.z = -61.4 - ((i * 1.33 + t * 0.7) % 13.2); });
+    printPart.scale.y = 0.2 + ((t * 0.08) % 1); printPart.position.y = 1.04 + printPart.scale.y * 0.125;
+    head.rotation.y = Math.sin(t * 0.9) * 0.08; head.rotation.x = Math.sin(t * 1.7) * 0.03;
+    handR.position.x = 0.32 + Math.sin(t * 3.1) * 0.03; mouseObj.position.x = DX + 0.35 + Math.sin(t * 3.1) * 0.03;
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+  }
+})();
+</script>
+
+</body>
+</html>
