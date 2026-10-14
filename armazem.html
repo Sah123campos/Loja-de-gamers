@@ -194,6 +194,15 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   .hint i::after { animation: none; }
 }
+
+/* ajustes de tablet */
+input, select, textarea { width: 100%; min-width: 0; }
+dd { overflow-wrap: anywhere; }
+@media (max-width: 1024px) {
+  .stops button { font-size: 0; gap: 0; }
+  .stops button span { display: none; }
+  .contact { grid-template-columns: 1fr; gap: 48px; }
+}
 </style>
 </head>
 <body>

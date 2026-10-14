@@ -147,6 +147,15 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
   .row2 { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .hint i::after { animation: none; } }
+
+/* ajustes de tablet */
+input, select, textarea { width: 100%; min-width: 0; }
+dd { overflow-wrap: anywhere; }
+@media (max-width: 1024px) {
+  .stops button { font-size: 0; gap: 0; }
+  .stops button span { display: none; }
+  .contact { grid-template-columns: 1fr; gap: 48px; }
+}
 </style>
 </head>
 <body>
@@ -256,12 +265,18 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
 .fps div span:last-child { text-align: right; }
 .cfg-sum .btn { justify-content: center; }
 @media (max-width: 900px) {
-  .cfg-grid { grid-template-columns: 1fr; }
-  .cfg-stage { position: relative; top: 0; height: 420px; min-height: 0; }
+  .cfg-grid { grid-template-columns: 1fr; gap: 20px; }
+  .cfg-stage { position: sticky; top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 3; height: 380px; min-height: 0; box-shadow: 0 18px 30px -12px var(--ink); }
 }
 @media (max-width: 760px) {
   .cfg { padding-block: 80px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .cfg-stage { height: 360px; }
+  .cfg-stage { height: 290px; }
+  .cfg-hint { display: none; }
+  .cfg-tag { left: 14px; top: 12px; }
+  .cfg-tag b { font-size: 22px; }
+  .cfg-tag small { font-size: 10px; margin-top: 4px; }
+  .cfg-price { right: 14px; bottom: 10px; }
+  .cfg-price b { font-size: 24px; }
 }
 </style>
 <section class="cfg" id="personalize" aria-labelledby="cfg-title">
@@ -960,7 +975,7 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
   var mouseObj = box(0.06, 0.03, 0.1, M.caseM, DX + 0.36, 0.775, DZ + 0.24);
   box(0.005, 0.006, 0.05, RGB[5], DX + 0.36, 0.792, DZ + 0.24);
   box(0.85, 0.004, 0.36, std(0x0d0e12, 0.9), DX + 0.25, 0.762, DZ + 0.22);
-  var mug = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.1, 16), std(0xff2e88, 0.4)); mug.position.set(DX - 0.62, 0.81, DZ + 0.2); scene.add(mug);
+  var mug = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.1, 16), std(0xff2e88, 0.4)); mug.position.set(DX + 0.6, 0.81, DZ + 0.3); scene.add(mug);
   var standPole = box(0.015, 0.3, 0.015, M.steel, DX + 0.75, 0.91, DZ + 0.15);
   var hsHome = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.016, 8, 20, Math.PI), M.caseM); hsHome.position.set(DX + 0.75, 1.02, DZ + 0.15); scene.add(hsHome);
   var ledStrip = box(3.2, 0.04, 0.04, RGB[0], DX, 2.2, HZ - 9.85);
