@@ -159,7 +159,7 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
     <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2 25 8.5v11L14 26 3 19.5v-11z" fill="none" stroke="#ff2e88" stroke-width="2"/><path d="M14 9.5 18.5 12v5L14 19.5 9.5 17v-5z" fill="#ff6a13"/></svg>
     <span>NÚCLEO <i>MERIDIANO</i></span>
   </a>
-  <a class="btn" href="#monte">Montar meu PC</a>
+  <a class="btn" href="#personalize">Montar meu PC</a>
 </header>
 
 <section class="panel hero" id="hero">
@@ -182,7 +182,7 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
 <article class="panel station m" data-at="0.71"><p class="eyebrow"><b>Pátio interno</b> · Terminal REDEX</p><h2>Contêineres</h2><p>Ova e desova de 20' e 40', despacho aduaneiro de exportação e conferência com a fiscalização no próprio recinto.</p><div class="stats"><div><b>600</b><small>TEU / mês</small></div><div><b>20'·40'</b><small>dry e high cube</small></div><div><b>48 h</b><small>liberação média</small></div></div></article>
 <article class="panel station m" data-at="0.78"><p class="eyebrow"><b>Doca de expedição</b> · Portas D-01 a D-10</p><h2>Transporte</h2><p>Frota própria com rastreamento em tempo real e janela de agendamento por doca. Do Sul ao Nordeste, com a mesma equipe do armazém.</p><div class="stats"><div><b>10</b><small>docas niveladas</small></div><div><b>120</b><small>carretas</small></div><div><b>98%</b><small>entregas no prazo</small></div></div></article>
 <article class="panel station" data-at="0.89"><p class="eyebrow"><b>Entrega</b> · Na porta de casa</p><h2>Chegou.</h2><p>O entregador confere o lacre com você na hora. Se a caixa chegar violada, a troca é imediata.</p></article>
-<article class="panel station" data-at="1.0"><p class="eyebrow"><b>Em casa</b> · Pronto para jogar</p><h2>Sua carga chegou. Liga e joga.</h2><p>Windows ativado, drivers atualizados e perfil de RGB configurado. É só conectar o monitor e entrar na partida.</p><a class="btn" href="#monte">Montar meu PC</a></article>
+<article class="panel station" data-at="1.0"><p class="eyebrow"><b>Em casa</b> · Pronto para jogar</p><h2>Sua carga chegou. Liga e joga.</h2><p>Windows ativado, drivers atualizados e perfil de RGB configurado. É só conectar o monitor e entrar na partida.</p><a class="btn" href="#personalize">Montar meu PC</a></article>
 
 <ol class="stops" aria-label="Paradas da jornada">
   <li><button type="button" data-go="0"><span>00</span>Fachada</button></li>
@@ -207,6 +207,80 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
 <div id="walk"></div>
 
 <div class="after">
+  <!-- CONFIGURADOR:INICIO -->
+<style>
+.cfg { max-width: 1240px; margin: 0 auto; padding-block: 120px 24px; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+.cfg-head { display: grid; gap: 4px; margin-bottom: 36px; max-width: 720px; }
+.cfg-head h2 { font-family: var(--chakra, var(--display)); font-weight: 700; text-transform: uppercase; line-height: .92; font-size: clamp(44px, 6vw, 84px); margin: 0 0 12px; text-wrap: balance; }
+.cfg-head h2 span { color: var(--mag); }
+.cfg-head p:not(.eyebrow) { margin: 0; color: #d3d6e2; max-width: 56ch; }
+.cfg-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.cfg-stage { position: sticky; top: 84px; height: min(78vh, 700px); min-height: 440px; border: 1px solid var(--hair); overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 100%, rgba(255,46,136,.16), rgba(0,0,0,0) 60%), radial-gradient(90% 70% at 50% 30%, #151826, var(--ink) 75%); }
+.cfg-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: pan-y; }
+.cfg-stage canvas:active { cursor: grabbing; }
+.cfg-tag { position: absolute; left: 20px; top: 18px; right: 20px; pointer-events: none; }
+.cfg-tag b { display: block; font-family: var(--chakra, var(--display)); font-weight: 700; font-size: clamp(26px, 3vw, 38px); line-height: 1; text-transform: uppercase; }
+.cfg-tag small { display: block; margin-top: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cfg-hint { position: absolute; left: 20px; bottom: 16px; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); pointer-events: none; }
+.cfg-price { position: absolute; right: 20px; bottom: 14px; text-align: right; pointer-events: none; }
+.cfg-price small { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.cfg-price b { font-family: var(--chakra, var(--display)); font-weight: 700; font-size: clamp(28px, 3.2vw, 40px); font-variant-numeric: tabular-nums; }
+.cfg-panel { display: grid; gap: 22px; min-width: 0; }
+.cfg-panel fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.cfg-panel legend { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; padding: 0; }
+.cfg-section { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); border-top: 1px solid var(--hair); padding-top: 18px; margin: 4px 0 -6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; cursor: pointer; }
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chip span { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid var(--hair); font-size: 14px; color: #d3d6e2; transition: border-color .2s, background .2s, color .2s; }
+.chip span em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.chip:hover span { border-color: rgba(238,240,246,.4); }
+.chip input:checked + span { border-color: var(--mag); background: rgba(255,46,136,.12); color: var(--paper); }
+.chip input:checked + span em { color: var(--mag); }
+.chip input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.chip input:disabled + span { opacity: .3; cursor: not-allowed; text-decoration: line-through; }
+.chip.sw span { padding: 6px 12px 6px 6px; }
+.chip.sw i { width: 24px; height: 24px; border-radius: 50%; display: block; border: 1px solid rgba(255,255,255,.25); }
+.cfg-note { margin: 8px 0 0; font-family: var(--mono); font-size: 11px; color: var(--amber, #ffb020); min-height: 1.2em; }
+.cfg-sum { display: grid; gap: 14px; background: var(--ink-2); border: 1px solid var(--hair); padding: 22px; }
+.cfg-sum dl { margin: 0; display: grid; gap: 0; }
+.cfg-sum dl div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--hair); font-size: 14px; }
+.cfg-sum dt { color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding-top: 2px; }
+.cfg-sum dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.fps { display: grid; gap: 8px; }
+.fps p { margin: 0 0 2px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.fps div { display: grid; grid-template-columns: 56px 1fr 64px; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fps u { display: block; height: 8px; background: rgba(238,240,246,.08); text-decoration: none; position: relative; overflow: hidden; }
+.fps u s { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--mag), var(--cyan)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+.fps div span:last-child { text-align: right; }
+.cfg-sum .btn { justify-content: center; }
+@media (max-width: 900px) {
+  .cfg-grid { grid-template-columns: 1fr; }
+  .cfg-stage { position: relative; top: 0; height: 420px; min-height: 0; }
+}
+@media (max-width: 760px) {
+  .cfg { padding-block: 80px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .cfg-stage { height: 360px; }
+}
+</style>
+<section class="cfg" id="personalize" aria-labelledby="cfg-title">
+  <div class="cfg-head">
+    <p class="eyebrow">Configurador 3D</p>
+    <h2 id="cfg-title">Personalize o <span>seu PC.</span></h2>
+    <p>Escolha tamanho, cor, iluminação e peças. O modelo muda a cada clique, e o preço, o FPS estimado e o consumo acompanham.</p>
+  </div>
+  <div class="cfg-grid">
+    <div class="cfg-stage">
+      <canvas id="cfg-canvas" role="img" aria-label="Modelo 3D do PC configurado"></canvas>
+      <div class="cfg-tag"><b id="cfg-name">NX-4 Core</b><small id="cfg-line">Mid tower · preto · vidro temperado</small></div>
+      <div class="cfg-hint">Arraste para girar</div>
+      <div class="cfg-price"><small>Estimativa ilustrativa</small><b id="cfg-price">R$ 0</b></div>
+    </div>
+    <div class="cfg-panel" id="cfg-panel"></div>
+  </div>
+</section>
+<!-- CONFIGURADOR:FIM -->
   <section class="contact" id="monte">
     <div>
       <p class="eyebrow">Configurador</p>
@@ -1033,6 +1107,301 @@ footer { border-top: 1px solid var(--hair); overflow: hidden; padding-block: 48p
   }
 })();
 </script>
+<!-- CONFIGURADOR-SCRIPT:INICIO -->
+<script>
+(function () {
+  "use strict";
+  var panel = document.getElementById("cfg-panel");
+  if (!panel) return;
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- opções ---------- */
+  var RGBC = { mag: 0xff2e88, cyan: 0x23d5f0, amber: 0xffb020, green: 0x3dff8a };
+  var GROUPS = [
+    { sec: "Gabinete" },
+    { key: "size", label: "Tamanho", items: [
+      { v: "mini", t: "Mini-ITX", price: 450, name: "Compact" }, { v: "mid", t: "Mid tower", price: 550, name: "Core" }, { v: "full", t: "Full tower", price: 800, name: "Titan" }] },
+    { key: "color", label: "Cor do gabinete", sw: true, items: [
+      { v: "black", t: "Preto", css: "#14151b", hex: 0x14151b }, { v: "white", t: "Branco", css: "#e9eaef", hex: 0xe9eaef }, { v: "graphite", t: "Grafite", css: "#4a4e5a", hex: 0x4a4e5a }, { v: "magenta", t: "Magenta", css: "#c21f68", hex: 0xc21f68 }] },
+    { key: "side", label: "Painel lateral", items: [{ v: "glass", t: "Vidro temperado" }, { v: "mesh", t: "Malha" }, { v: "solid", t: "Fechado" }] },
+    { sec: "Iluminação" },
+    { key: "rgb", label: "Cor do RGB", sw: true, items: [
+      { v: "mag", t: "Magenta", css: "#ff2e88" }, { v: "cyan", t: "Ciano", css: "#23d5f0" }, { v: "amber", t: "Âmbar", css: "#ffb020" }, { v: "green", t: "Verde", css: "#3dff8a" },
+      { v: "rainbow", t: "Arco-íris", css: "conic-gradient(#ff2e88, #ffb020, #3dff8a, #23d5f0, #7a5cff, #ff2e88)" }, { v: "off", t: "Desligado", css: "linear-gradient(135deg, #222 45%, #777 47%, #777 53%, #222 55%)" }] },
+    { key: "fx", label: "Efeito", items: [{ v: "static", t: "Fixo" }, { v: "breath", t: "Respiração" }, { v: "wave", t: "Onda" }] },
+    { key: "fans", label: "Ventoinhas frontais", items: [{ v: 2, t: "2 × 120 mm", price: 0 }, { v: 3, t: "3 × 120 mm", price: 90 }] },
+    { sec: "Peças" },
+    { key: "cooler", label: "Refrigeração", items: [{ v: "air", t: "Air cooler", price: 250 }, { v: "aio240", t: "Water 240 mm", price: 600 }, { v: "aio360", t: "Water 360 mm", price: 900 }] },
+    { key: "cpu", label: "Processador", items: [{ v: 6, t: "6 núcleos", price: 950, perf: 1, w: 65 }, { v: 8, t: "8 núcleos", price: 1750, perf: 1.12, w: 105 }, { v: 16, t: "16 núcleos", price: 3400, perf: 1.2, w: 170 }] },
+    { key: "gpu", label: "Placa de vídeo", items: [{ v: 1, t: "Entrada · 8 GB", price: 1900, perf: 1, w: 160, len: 0.21, fans: 2 }, { v: 2, t: "Intermediária · 12 GB", price: 3700, perf: 1.6, w: 220, len: 0.26, fans: 3 }, { v: 3, t: "Topo · 16 GB", price: 7900, perf: 2.5, w: 320, len: 0.30, fans: 3 }] },
+    { key: "ram", label: "Memória", items: [{ v: 16, t: "16 GB", price: 350, sticks: 2 }, { v: 32, t: "32 GB", price: 650, sticks: 2 }, { v: 64, t: "64 GB", price: 1300, sticks: 4 }] },
+    { key: "ssd", label: "Armazenamento", items: [{ v: 1, t: "1 TB NVMe", price: 380 }, { v: 2, t: "2 TB NVMe", price: 700 }, { v: 4, t: "4 TB NVMe", price: 1500 }] }
+  ];
+  var cfg = { size: "mid", color: "black", side: "glass", rgb: "mag", fx: "wave", fans: 3, cooler: "aio240", cpu: 8, gpu: 2, ram: 32, ssd: 2 };
+  function item(key, v) { var g = GROUPS.filter(function (x) { return x.key === key; })[0]; return g.items.filter(function (i) { return String(i.v) === String(v); })[0]; }
+
+  /* ---------- painel de opções ---------- */
+  var html = "";
+  GROUPS.forEach(function (g) {
+    if (g.sec) { html += '<p class="cfg-section">' + g.sec + "</p>"; return; }
+    html += '<fieldset><legend>' + g.label + '</legend><div class="chips">';
+    g.items.forEach(function (it) {
+      var id = "cfg-" + g.key + "-" + it.v;
+      html += '<label class="chip' + (g.sw ? " sw" : "") + '" for="' + id + '"><input type="radio" id="' + id + '" name="cfg-' + g.key + '" value="' + it.v + '"' + (String(cfg[g.key]) === String(it.v) ? " checked" : "") + '><span>' +
+        (g.sw ? '<i style="background:' + it.css + '"></i>' : "") + it.t + (it.price ? " <em>+R$ " + it.price.toLocaleString("pt-BR") + "</em>" : "") + "</span></label>";
+    });
+    html += "</div></fieldset>";
+  });
+  html += '<p class="cfg-note" id="cfg-note" aria-live="polite"></p>' +
+    '<div class="cfg-sum"><dl id="cfg-specs"></dl>' +
+    '<div class="fps" id="cfg-fps"></div>' +
+    '<button class="btn" type="button" id="cfg-order">Pedir esta configuração</button></div>';
+  panel.innerHTML = html;
+  var note = document.getElementById("cfg-note");
+
+  function applyRules() {
+    var mini = cfg.size === "mini", msg = [];
+    function lock(key, v, off) { var el = document.getElementById("cfg-" + key + "-" + v); if (el) el.disabled = off; }
+    lock("fans", 3, mini); lock("cooler", "aio360", mini); lock("ram", 64, mini);
+    if (mini && cfg.fans === 3) { cfg.fans = 2; msg.push("2 ventoinhas"); }
+    if (mini && cfg.cooler === "aio360") { cfg.cooler = "aio240"; msg.push("water 240 mm"); }
+    if (mini && cfg.ram === 64) { cfg.ram = 32; msg.push("32 GB"); }
+    ["fans", "cooler", "ram"].forEach(function (k) { var el = document.getElementById("cfg-" + k + "-" + cfg[k]); if (el) el.checked = true; });
+    note.textContent = mini ? "Mini-ITX comporta até 2 ventoinhas frontais, water cooler de 240 mm e 2 pentes de memória." + (msg.length ? " Ajustado para: " + msg.join(", ") + "." : "") : "";
+  }
+
+  function summary() {
+    var s = item("size", cfg.size), c = item("color", cfg.color), cpu = item("cpu", cfg.cpu), gpu = item("gpu", cfg.gpu), ram = item("ram", cfg.ram), ssd = item("ssd", cfg.ssd), co = item("cooler", cfg.cooler), fa = item("fans", cfg.fans);
+    var price = 400 + s.price + co.price + cpu.price + gpu.price + ram.price + ssd.price + fa.price;
+    var watts = cpu.w + gpu.w + 70 + cfg.fans * 3;
+    var psu = [550, 650, 750, 850, 1000].filter(function (p) { return p >= watts * 1.5; })[0] || 1200;
+    var base = 72 * gpu.perf * cpu.perf;
+    var fps = [["1080p", Math.round(base)], ["1440p", Math.round(base * 0.72)], ["4K", Math.round(base * 0.44)]];
+    return { name: "NX-4 " + s.name, price: price, watts: watts, psu: psu, fps: fps,
+      line: s.t + " · " + c.t.toLowerCase() + " · " + item("side", cfg.side).t.toLowerCase() + " · RGB " + item("rgb", cfg.rgb).t.toLowerCase(),
+      specs: [["Processador", cpu.t], ["Placa de vídeo", gpu.t], ["Memória", ram.t + " · " + ram.sticks + " pentes"], ["Armazenamento", ssd.t], ["Refrigeração", co.t], ["Consumo", "~" + watts + " W"], ["Fonte", psu + " W 80 Plus Gold"]] };
+  }
+  function money(n) { return "R$ " + n.toLocaleString("pt-BR"); }
+  function renderSummary() {
+    var s = summary();
+    document.getElementById("cfg-name").textContent = s.name;
+    document.getElementById("cfg-line").textContent = s.line;
+    document.getElementById("cfg-price").textContent = money(s.price);
+    document.getElementById("cfg-specs").innerHTML = s.specs.map(function (r) { return "<div><dt>" + r[0] + "</dt><dd>" + r[1] + "</dd></div>"; }).join("");
+    document.getElementById("cfg-fps").innerHTML = "<p>FPS estimado · jogo AAA no ultra</p>" + s.fps.map(function (f) {
+      return "<div><span>" + f[0] + '</span><u><s style="width:' + Math.min(100, f[1] / 2.4) + '%"></s></u><span>' + f[1] + " FPS</span></div>";
+    }).join("");
+    return s;
+  }
+  document.getElementById("cfg-order").addEventListener("click", function () {
+    var s = summary(), ta = document.getElementById("f-games"), bud = document.getElementById("f-budget");
+    var text = "Configuração " + s.name + " (" + money(s.price) + "): " + s.line + "; " + s.specs.slice(0, 5).map(function (r) { return r[1]; }).join(", ") + ".";
+    if (ta) { if (!("orig" in ta.dataset)) ta.dataset.orig = ta.value; ta.value = text + "\nJogos: " + ta.dataset.orig; }
+    if (bud) bud.selectedIndex = s.price < 5000 ? 0 : s.price < 10000 ? 1 : s.price < 20000 ? 2 : 3;
+    var form = document.getElementById("build");
+    if (form) form.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  });
+
+  applyRules(); renderSummary();
+  if (!window.THREE) { panel.addEventListener("change", function (e) { var t = e.target; if (!t.name) return; var k = t.name.slice(4); cfg[k] = isNaN(+t.value) ? t.value : +t.value; applyRules(); renderSummary(); }); return; }
+
+  /* ---------- cena 3D ---------- */
+  var canvas = document.getElementById("cfg-canvas");
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, 1, 0.01, 20);
+  (function () {
+    var env = new THREE.Scene();
+    env.add(new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), new THREE.MeshBasicMaterial({ color: 0x0c0d14, side: THREE.BackSide })));
+    function strip(c, w, h, d, x, y, z) { var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, y, z); env.add(m); }
+    strip(0xffffff, 4, 0.1, 1.2, 0, 2.9, 0); strip(0xffffff, 0.1, 2, 3, 4.9, 1, 1); strip(0xff2e88, 0.1, 3, 4, -4.9, 0.5, 0); strip(0x23d5f0, 4, 3, 0.1, 0, 0.5, -4.9);
+    var pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.03).texture; pm.dispose();
+  })();
+  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x221a26, 0.45));
+  var key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(1.4, 2.2, 1.6); scene.add(key);
+  var rimM = new THREE.PointLight(0xff2e88, 1.4, 4, 2); rimM.position.set(-1.1, 0.8, -0.9); scene.add(rimM);
+  var rimC = new THREE.PointLight(0x23d5f0, 1.2, 4, 2); rimC.position.set(1.2, 0.5, -1.1); scene.add(rimC);
+  var inner = new THREE.PointLight(0xff2e88, 0.8, 0.7, 2); scene.add(inner);
+
+  function tex(w, h, draw) { var c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h); var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; return t; }
+  var meshAlpha = tex(128, 128, function (ctx, w, h) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); ctx.fillStyle = "#000"; for (var y = 0; y < h; y += 8) for (var x = (y / 8) % 2 ? 4 : 0; x < w; x += 8) { ctx.beginPath(); ctx.arc(x + 2, y + 4, 2.7, 0, 7); ctx.fill(); } });
+  meshAlpha.encoding = THREE.LinearEncoding; meshAlpha.wrapS = meshAlpha.wrapT = THREE.RepeatWrapping; meshAlpha.repeat.set(5, 9);
+  var halo = tex(128, 128, function (ctx) { var g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.3, "rgba(255,255,255,.35)"); g.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128); });
+  var pcbTex = tex(256, 256, function (ctx, w, h) {
+    ctx.fillStyle = "#14181c"; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(201,165,74,.16)"; ctx.lineWidth = 1;
+    for (var i = 0; i < 18; i++) { var yy = 12 + i * 13; ctx.beginPath(); ctx.moveTo(60, yy); ctx.lineTo(140, yy); ctx.lineTo(150, yy + 8); ctx.stroke(); }
+    ctx.fillStyle = "#2a2e36"; ctx.fillRect(14, 14, 36, 132); ctx.fillRect(150, 110, 92, 20);
+    ctx.fillStyle = "#0a0b0d"; ctx.fillRect(152, 24, 76, 76); ctx.strokeStyle = "#3a3f4a"; ctx.lineWidth = 2; ctx.strokeRect(152, 24, 76, 76);
+    ctx.fillStyle = "#3a3d46"; ctx.fillRect(26, 182, 214, 12); ctx.fillRect(26, 214, 214, 12);
+    ctx.fillStyle = "rgba(238,240,246,.5)"; ctx.font = "500 10px monospace"; ctx.fillText("NX-B760", 160, 145);
+  });
+  var finsTex = tex(128, 128, function (ctx, w, h) { for (var y = 0; y < h; y += 6) { ctx.fillStyle = "#c9ccd4"; ctx.fillRect(0, y, w, 4); ctx.fillStyle = "#5c606b"; ctx.fillRect(0, y + 4, w, 2); } });
+  function logoTex(color) { return tex(512, 128, function (ctx, w, h) { ctx.fillStyle = color; ctx.font = "700 76px 'Chakra Petch', 'Arial Narrow', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("NÚCLEO", w / 2, h / 2 + 4); }); }
+  var logoLight = logoTex("#eef0f6"), logoDark = logoTex("#14151b");
+
+  var floor = new THREE.Mesh(new THREE.CircleGeometry(1.4, 64), new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.28, metalness: 0.6, envMapIntensity: 0.7 }));
+  floor.rotation.x = -Math.PI / 2; scene.add(floor);
+  var under = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: halo, color: 0xff2e88, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+  under.rotation.x = -Math.PI / 2; under.position.y = 0.002; scene.add(under);
+  var ring = new THREE.Mesh(new THREE.RingGeometry(0.46, 0.465, 96), new THREE.MeshBasicMaterial({ color: 0x23d5f0, transparent: true, opacity: 0.35 }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.003; scene.add(ring);
+
+  var pc = null, rgbItems = [], rotors = [], dims = null;
+  var darkM = new THREE.MeshStandardMaterial({ color: 0x0d0e12, roughness: 0.45, metalness: 0.4 });
+  var steelM = new THREE.MeshStandardMaterial({ color: 0x8a8f9c, roughness: 0.3, metalness: 0.85 });
+  function rgbMat(phase) { var m = new THREE.MeshBasicMaterial({ color: 0xff2e88 }); rgbItems.push({ m: m, phase: phase }); return m; }
+  function bx(w, h, d, mat, x, y, z, p) { var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); p.add(m); return m; }
+  function fan(r, phase) {
+    var g = new THREE.Group(), fr = r + 0.006;
+    bx(fr * 2, 0.006, 0.012, darkM, 0, fr - 0.003, 0, g); bx(fr * 2, 0.006, 0.012, darkM, 0, -fr + 0.003, 0, g);
+    bx(0.006, fr * 2, 0.012, darkM, fr - 0.003, 0, 0, g); bx(0.006, fr * 2, 0.012, darkM, -fr + 0.003, 0, 0, g);
+    var rg = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0045, 8, 48), rgbMat(phase)); g.add(rg);
+    var rotor = new THREE.Group(); g.add(rotor);
+    var hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.32, r * 0.32, 0.01, 20), darkM); hub.rotation.x = Math.PI / 2; rotor.add(hub);
+    var bladeM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, transparent: true, opacity: 0.45, metalness: 0.1 });
+    for (var i = 0; i < 7; i++) { var piv = new THREE.Group(); piv.rotation.z = i / 7 * Math.PI * 2; var b = bx(r * 0.62, r * 0.34, 0.0015, bladeM, r * 0.62, 0, 0, piv); b.rotation.x = 0.45; rotor.add(piv); }
+    rotors.push(rotor);
+    return g;
+  }
+
+  function build() {
+    if (pc) { scene.remove(pc); pc.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); }
+    rgbItems = []; rotors = [];
+    var D = { mini: { w: 0.2, h: 0.36, d: 0.37 }, mid: { w: 0.23, h: 0.48, d: 0.46 }, full: { w: 0.25, h: 0.57, d: 0.53 } }[cfg.size];
+    dims = D;
+    var w = D.w, h = D.h, d = D.d, t = 0.006, foot = 0.016, y0 = foot;
+    var col = item("color", cfg.color).hex, light = cfg.color === "white";
+    var caseM = new THREE.MeshStandardMaterial({ color: col, roughness: light ? 0.42 : 0.32, metalness: light ? 0.15 : 0.55, envMapIntensity: 1 });
+    var meshM = caseM.clone(); meshM.alphaMap = meshAlpha; meshM.transparent = true; meshM.side = THREE.DoubleSide; meshM.depthWrite = false;
+    pc = new THREE.Group(); scene.add(pc);
+    // estrutura
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (s) { bx(0.03, foot, 0.05, darkM, s[0] * (w / 2 - 0.025), foot / 2, s[1] * (d / 2 - 0.04), pc); });
+    bx(w, t, d, caseM, 0, y0 + t / 2, 0, pc);
+    bx(w, t, d, caseM, 0, y0 + h - t / 2, 0, pc);
+    bx(w, h, t, caseM, 0, y0 + h / 2, -d / 2 + t / 2, pc);
+    bx(t, h, d, caseM, -w / 2 + t / 2, y0 + h / 2, 0, pc);
+    var front = bx(w, h, t, meshM, 0, y0 + h / 2, d / 2 - t / 2, pc);
+    bx(0.004, h * 0.84, 0.004, rgbMat(0.5), w / 2 - 0.012, y0 + h / 2, d / 2 + 0.001, pc);
+    var sideM = cfg.side === "glass" ? new THREE.MeshStandardMaterial({ color: 0x0b0d14, roughness: 0.04, metalness: 0.9, transparent: true, opacity: 0.22, envMapIntensity: 1.6, depthWrite: false })
+      : cfg.side === "mesh" ? meshM : caseM;
+    bx(0.004, h - 0.004, d - 0.004, sideM, w / 2 - 0.002, y0 + h / 2, 0, pc);
+    if (cfg.side === "glass") { [[0, h / 2 - 0.004], [0, -h / 2 + 0.004]].forEach(function (p) { bx(0.006, 0.008, d, caseM, w / 2 - 0.003, y0 + h / 2 + p[1], 0, pc); }); }
+    // interior
+    var inX = -w / 2 + t;
+    var shH = h * 0.2, shTop = y0 + t + shH;
+    bx(w - 2 * t, shH, d - 2 * t, caseM, 0, y0 + t + shH / 2, 0, pc);
+    var lg = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.03), new THREE.MeshBasicMaterial({ map: light ? logoDark : logoLight, transparent: true }));
+    lg.rotation.y = Math.PI / 2; lg.position.set(w / 2 - t - 0.001, y0 + t + shH / 2, d * 0.12); pc.add(lg);
+    var mbH = h - shH - 0.04, mbD = Math.min(d * 0.66, 0.3);
+    var mb = new THREE.Mesh(new THREE.BoxGeometry(0.004, mbH, mbD), new THREE.MeshStandardMaterial({ map: pcbTex, roughness: 0.6, metalness: 0.3 }));
+    mb.position.set(inX + 0.008, shTop + 0.02 + mbH / 2, -d / 2 + t + 0.012 + mbD / 2); pc.add(mb);
+    var cy = shTop + mbH * 0.66, cz = -d / 2 + t + 0.012 + mbD * 0.42;
+    if (cfg.cooler === "air") {
+      var hs = bx(0.075, 0.12, 0.1, new THREE.MeshStandardMaterial({ map: finsTex, roughness: 0.35, metalness: 0.8 }), inX + 0.05, cy, cz, pc);
+      bx(0.077, 0.006, 0.102, darkM, inX + 0.05, cy + 0.063, cz, pc);
+      var cf = fan(0.05, 0.6); cf.position.set(inX + 0.05, cy, cz + 0.058); pc.add(cf);
+    } else {
+      var pump = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.02, 32), darkM); pump.rotation.z = Math.PI / 2; pump.position.set(inX + 0.022, cy, cz); pc.add(pump);
+      var pr = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.003, 8, 40), rgbMat(0.6)); pr.rotation.y = Math.PI / 2; pr.position.set(inX + 0.033, cy, cz); pc.add(pr);
+      var n = cfg.cooler === "aio360" ? 3 : 2, r = 0.052, len = n * (2 * r + 0.012) + 0.03;
+      var radY = y0 + h - t - 0.018;
+      bx(w * 0.6, 0.028, len, darkM, 0.0, radY, d / 2 - t - len / 2 - 0.02, pc);
+      for (var i = 0; i < n; i++) { var rf = fan(r, 0.9 + i * 0.1); rf.rotation.x = Math.PI / 2; rf.position.set(0, radY - 0.022, d / 2 - t - 0.035 - r - i * (2 * r + 0.012)); pc.add(rf); }
+      [0.012, -0.012].forEach(function (o) {
+        var p1 = new THREE.Vector3(inX + 0.03, cy + 0.01, cz + o), p2 = new THREE.Vector3(0, radY - 0.02, d / 2 - t - len + 0.02 + o);
+        var curve = new THREE.CatmullRomCurve3([p1, new THREE.Vector3(inX + 0.06, cy + 0.06, cz + 0.05 + o), p2]);
+        pc.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.0055, 8, false), darkM));
+      });
+    }
+    var ram = item("ram", cfg.ram);
+    for (var k = 0; k < ram.sticks; k++) {
+      var rz = cz + 0.07 + k * 0.011;
+      bx(0.03, 0.12, 0.006, darkM, inX + 0.024, cy - 0.01, rz, pc);
+      bx(0.005, 0.12, 0.0065, rgbMat(0.7 + k * 0.03), inX + 0.041, cy - 0.01, rz, pc);
+    }
+    var rear = fan(0.05, 0.8); rear.position.set(0.02, cy + 0.02, -d / 2 + t + 0.01); pc.add(rear);
+    var gpu = item("gpu", cfg.gpu), gl = Math.min(gpu.len, d - 2 * t - 0.03), gth = 0.03 + gpu.v * 0.008, gw = Math.min(0.125, w - 2 * t - 0.03);
+    var gy = shTop + 0.035 + gth / 2, gx = inX + 0.012 + gw / 2, gz = -d / 2 + t + gl / 2;
+    var gm = new THREE.MeshStandardMaterial({ color: gpu.v === 3 ? 0x1a1b22 : 0x23252d, roughness: 0.35, metalness: 0.7 });
+    bx(gw, gth, gl, gm, gx, gy, gz, pc);
+    bx(gw * 0.98, 0.003, gl * 0.98, steelM, gx, gy + gth / 2 + 0.0015, gz, pc);
+    bx(0.003, 0.008, gl * 0.82, rgbMat(0.3), gx + gw / 2 + 0.0015, gy, gz, pc);
+    var glg = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.025), new THREE.MeshBasicMaterial({ map: logoLight, transparent: true }));
+    glg.rotation.y = Math.PI / 2; glg.position.set(gx + gw / 2 + 0.002, gy + 0.001, gz - gl * 0.25); glg.scale.setScalar(Math.min(1, gth / 0.035)); pc.add(glg);
+    for (var j = 0; j < gpu.fans; j++) {
+      var gf = fan(gl / (gpu.fans * 2) - 0.008, 0.25 + j * 0.05); gf.rotation.x = Math.PI / 2;
+      gf.position.set(gx, gy - gth / 2 - 0.007, gz - gl / 2 + (j + 0.5) * gl / gpu.fans); pc.add(gf);
+    }
+    var fr = Math.min(0.055, (h - shH - 0.06) / (cfg.fans * 2 + 0.6));
+    for (var f = 0; f < cfg.fans; f++) { var ff = fan(fr, f * 0.15); ff.position.set(0.01, y0 + h - 0.03 - fr - f * (2 * fr + 0.012), d / 2 - t - 0.012); pc.add(ff); }
+    inner.position.set(0.02, y0 + h * 0.55, 0); pc.add(inner);
+    under.scale.set(w * 4.2, d * 3.2, 1);
+    ring.scale.setScalar(Math.max(w, d) * 1.65);
+    pc.rotation.y = rotY;
+    pc.scale.setScalar(0.94); popT = 0;
+  }
+
+  /* ---------- interação ---------- */
+  var rotY = -0.45, velY = 0, dragging = false, lastX = 0, idle = 0, popT = 1;
+  canvas.addEventListener("pointerdown", function (e) { dragging = true; lastX = e.clientX; velY = 0; idle = 0; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener("pointermove", function (e) { if (!dragging) return; var dx = e.clientX - lastX; lastX = e.clientX; rotY += dx * 0.01; velY = dx * 0.01; });
+  function endDrag() { dragging = false; }
+  canvas.addEventListener("pointerup", endDrag); canvas.addEventListener("pointercancel", endDrag);
+  panel.addEventListener("change", function (e) {
+    var t = e.target; if (!t.name || t.name.indexOf("cfg-") !== 0) return;
+    var k = t.name.slice(4); cfg[k] = isNaN(+t.value) ? t.value : +t.value;
+    applyRules(); renderSummary(); build(); idle = 0;
+  });
+
+  function resize() {
+    var r = canvas.getBoundingClientRect(); if (!r.width) return;
+    renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  var visible = false;
+  if ("IntersectionObserver" in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) resize(); }, { rootMargin: "200px" }).observe(canvas);
+  else visible = true;
+
+  build(); resize();
+  var camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), camInit = false, last = performance.now(), clock = 0, col = new THREE.Color(), avg = new THREE.Color();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!visible || document.hidden) return;
+    clock += dt; idle += dt;
+    if (!dragging) { rotY += velY; velY *= 0.92; if (!reduce && idle > 2.5) rotY += dt * 0.25; }
+    pc.rotation.y = rotY;
+    popT = Math.min(1, popT + dt * 4); pc.scale.setScalar(0.94 + 0.06 * (1 - Math.pow(1 - popT, 3)));
+    var narrow = camera.aspect < 0.9, k = (dims.h / 0.48) * (narrow ? 1.35 : 1);
+    var tp = new THREE.Vector3(0.95 * k, 0.6 * k, 1.2 * k), tl = new THREE.Vector3(0, dims.h * 0.5, 0);
+    if (!camInit) { camPos.copy(tp); camLook.copy(tl); camInit = true; }
+    camPos.lerp(tp, 1 - Math.exp(-dt * 4)); camLook.lerp(tl, 1 - Math.exp(-dt * 4));
+    camera.position.copy(camPos); camera.lookAt(camLook);
+    // RGB
+    var spd = reduce ? 0.3 : 1;
+    avg.setRGB(0, 0, 0);
+    rgbItems.forEach(function (it) {
+      if (cfg.rgb === "off") { it.m.color.setHex(0x16171c); return; }
+      if (cfg.rgb === "rainbow") col.setHSL((clock * 0.12 * spd + it.phase * 0.6) % 1, 1, 0.55); else col.setHex(RGBC[cfg.rgb]);
+      var k2 = cfg.fx === "breath" ? 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(clock * 2.2 * spd)) : cfg.fx === "wave" ? 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(clock * 3 * spd - it.phase * 6)) : 1;
+      it.m.color.copy(col).multiplyScalar(k2); avg.add(it.m.color);
+    });
+    if (rgbItems.length) avg.multiplyScalar(1 / rgbItems.length);
+    var off = cfg.rgb === "off";
+    inner.color.copy(off ? col.setHex(0x000000) : avg); inner.intensity = off ? 0 : 1.6;
+    under.material.color.copy(off ? col.setHex(0x222222) : avg).multiplyScalar(off ? 1 : 1.6);
+    rotors.forEach(function (r, i) { r.rotation.z += dt * (reduce ? 2 : 9) * (i % 2 ? 1 : 1.07); });
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+<!-- CONFIGURADOR-SCRIPT:FIM -->
 
 </body>
 </html>
