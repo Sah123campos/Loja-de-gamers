@@ -12,6 +12,11 @@ As marcas Núcleo Hardware e Meridiano Logística são fictícias. Este é um si
 | `fabrica-gamer.html` | Versão só da fábrica gamer |
 | `armazem.html` | Versão só do armazém logístico |
 
+## Repositórios separados
+
+- Fábrica gamer: https://github.com/Sah123campos/fabrica-gamer-3d
+- Armazém: https://github.com/Sah123campos/armazem-3d
+
 ## Como abrir
 
 Abra `index.html` no navegador. É preciso estar conectado à internet, porque o Three.js e as fontes vêm de CDN.
